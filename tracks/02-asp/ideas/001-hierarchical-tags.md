@@ -2,8 +2,9 @@
 
 - **Дата:** 2026-05-21
 - **Автор:** soulhiler
-- **Статус:** **under-investigation** — интерпретация уточнена + mini prior-art search завершён 2026-05-21
-- **История статуса:** stub (2026-05-21, утром) → draft (2026-05-21, дневная сессия, интерпретация выбрана) → under-investigation (2026-05-21, вечер, prior art search закрыт)
+- **Статус:** **under-investigation** — интерпретация уточнена + mini prior-art search завершён + toy implementation работает (2026-05-21)
+- **История статуса:** stub (2026-05-21, утром) → draft (2026-05-21, дневная сессия, интерпретация выбрана) → under-investigation (2026-05-21, вечер, prior art search закрыт) → **with toy** (2026-05-21, поздний вечер, toy на AIrnd-репо работает)
+- **Toy implementation:** [`001-toy/`](001-toy/) — рабочий генератор тегов + 5 тестовых запросов с baseline comparison.
 
 ## Простыми словами
 
