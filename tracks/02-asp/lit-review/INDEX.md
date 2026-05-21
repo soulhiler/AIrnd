@@ -12,7 +12,7 @@
 - [x] Model Context Protocol (Anthropic, modelcontextprotocol.io) → [`anthropic-2024-mcp-spec.md`](anthropic-2024-mcp-spec.md)
 - [x] Tree-sitter — incremental parsing (tree-sitter.github.io) → [`brunsfeld-2018-tree-sitter.md`](brunsfeld-2018-tree-sitter.md)
 - [x] Aider — открытая архитектура агента (github.com/Aider-AI/aider) → [`gauthier-2024-aider-repomap.md`](gauthier-2024-aider-repomap.md)
-- [ ] Continue — JS/TS открытый агент (github.com/continuedev/continue)
+- [x] Continue — JS/TS открытый агент (github.com/continuedev/continue) → [`continuedev-2026-codebase-indexing.md`](continuedev-2026-codebase-indexing.md)
 - [ ] Cline — TypeScript агент (github.com/cline/cline)
 - [ ] Codex CLI (если открыт) — TypeScript
 - [ ] arXiv: «agent code protocol» — поиск + триаж
@@ -28,6 +28,7 @@
 | [brunsfeld-2018-tree-sitter](brunsfeld-2018-tree-sitter.md) | Tree-sitter — Incremental Parsing System | 2018 | 4 | parsing, ast, tool, foundation |
 | [patwari-2026-gitnexus](patwari-2026-gitnexus.md) | GitNexus — MCP-Native Knowledge Graph | 2024–2026 | 5 | mcp, code-intelligence, prior-art, **critical** |
 | [gauthier-2024-aider-repomap](gauthier-2024-aider-repomap.md) | Aider RepoMap — PageRank-based token-budget-aware code context selection | 2023–2026 | 5 | code-intelligence, tree-sitter, pagerank, token-budget, oss-agent, prior-art |
+| [continuedev-2026-codebase-indexing](continuedev-2026-codebase-indexing.md) | Continue.dev — Embeddings + LanceDB + Tree-sitter Hybrid Codebase Indexing | 2023–2026 | 5 | code-intelligence, embeddings, vector-db, lancedb, hybrid-retrieval, oss-agent, prior-art |
 
 ## Не релевантные (помечены, чтобы не возвращаться)
 
