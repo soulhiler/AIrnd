@@ -47,6 +47,15 @@ Clean-room reference implementation ASP-спецификации (см. [ADR 000
 
 Workname: `asp-ref`. Финальное имя — выбирается перед extract (Stage 2c). До этого не зацикливаемся.
 
+## Tech stack (по [ADR 0006](../decisions/0006-reference-implementation-language-typescript.md))
+
+- **Language:** TypeScript on Node.js 20+ LTS.
+- **MCP integration:** `@modelcontextprotocol/sdk` (официальный TS SDK).
+- **AST parsing:** `web-tree-sitter` (WASM bindings; native fallback if perf needed).
+- **Storage backend:** TBD (ADR 0007 — будет выбран после Stage 2a experiments). Кандидаты: SQLite, LanceDB, Kùzu.
+- **Build:** `tsc`. Distribution: npm + `npx asp-ref`.
+- **License:** Apache 2.0.
+
 ## Файлы здесь
 
 - `README.md` (этот файл) — pre-conditions и stages.

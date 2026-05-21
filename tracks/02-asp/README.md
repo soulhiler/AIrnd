@@ -4,6 +4,8 @@ LSP стандартизировал общение между редактор�
 
 **Артефакт трека:** RFC-спецификация ASP + reference implementation (clean-room, GitNexus parity + 5 UX-исправлений) + test suite. Reference implementation — dogfood-tool, активно используемый в наших проектах. См. [ADR 0001](decisions/0001-mcp-extension-vs-new-protocol.md), [ADR 0002](decisions/0002-asp-scope-opensource-agent-ecosystem-only.md), [ADR 0003](decisions/0003-reference-implementation-cleanroom-build-with-gitnexus-parity-5-fixes.md).
 
+**Текущий черновик спецификации:** [`design/03-asp-spec-draft.md`](design/03-asp-spec-draft.md) (Draft v0.1, in progress).
+
 Полная постановка — в `docs/TZ/RD_PROGRAM_TZ.md`, секция «ТРЕК 2».
 
 ## Простыми словами
