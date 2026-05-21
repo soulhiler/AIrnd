@@ -16,13 +16,17 @@ LSP стандартизировал общение между редактор�
 
 | Папка | Что внутри |
 |---|---|
-| [`lit-review/`](lit-review/) | Один файл = одна работа |
+| [`lit-review/`](lit-review/) | Один файл = одна работа; начни с [`_prior-art-survey.md`](lit-review/_prior-art-survey.md) |
 | [`notebook/`](notebook/) | Ежедневный лабораторный журнал |
 | [`decisions/`](decisions/) | ADR — архитектурные решения |
 | [`design/`](design/) | Дизайн-документы (спецификации, обзоры) |
 | [`prototype/`](prototype/) | Код прототипа (появится на Фазе 2) |
 | [`experiments/`](experiments/) | Pre-registration + результаты экспериментов |
 | [`deliverables/`](deliverables/) | Препринт, артефакты для конференций |
+
+## Lessons learned (для будущих треков)
+
+**Урок 2026-05-21:** глубокий разбор GitNexus (39.5k★, 16 MCP tools) после foundational литобзора показал, что точная engineering задача уже решена. Это привело к [переопределению направления](decisions/0001-mcp-extension-vs-new-protocol.md) с «строить ASP» на «формализовать GitNexus API как open RFC». В будущих треках — **prior art search до foundational литобзора** ([workflow](../../docs/workflows/prior-art-search.md)). Это сэкономило бы день; в более сложных случаях могло бы сэкономить недели.
 
 ## Gate 0 → 1
 

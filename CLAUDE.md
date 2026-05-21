@@ -2,6 +2,12 @@
 
 Этот репозиторий — R&D-программа по AI-Native Programming Stack. См. [`README.md`](README.md) для контекста и [`docs/TZ/RD_PROGRAM_TZ.md`](docs/TZ/RD_PROGRAM_TZ.md) для полного ТЗ.
 
+## Critical: prior art search first
+
+Перед глубоким литобзором foundational работ **в любом треке** — провести [Prior Art Search](docs/workflows/prior-art-search.md). ТЗ описывает проблемное пространство, не текущее состояние решений. Поле движется быстро, и существующие production-решения могут переопределить позиционирование трека (см. кейс Трек 2 / GitNexus).
+
+Это не опциональный шаг — без survey глубокий литобзор не начинается.
+
 ## Правила работы
 
 ### Что делегировать Claude Code
