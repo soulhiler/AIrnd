@@ -181,3 +181,41 @@ GitNexus покрывает **минимум 12 из наших 20 use cases н�
 2. **Поиск других реализаций** — есть ли GitHub MCP servers, тренировка которых пересекается с GitNexus.
 3. **Контакт с автором GitNexus** — Abhigyan Patwari. Узнать, есть ли намерения стандартизировать API.
 4. **Переоценка scope трека** — может, фокус сужается до конкретного gap (например, formalization layer), а не «целого ASP».
+
+---
+
+## Hands-on experience (dogfooding на нашем репо, 2026-05-21)
+
+Установлен и проверен: `npx --yes gitnexus@1.6.5 analyze .` на нашем (на тот момент markdown-only) репозитории.
+
+### Что сработало
+
+- **Установка через npx** — без проблем. `--yes` достаточно.
+- **Индексация:** 6.3 секунды для 25 файлов / 10 папок. Граф: 446 nodes / 488 edges / 0 clusters / 0 flows.
+- **Markdown как первоклассный язык:** GitNexus распарсил markdown секции — **411 Section nodes** + 25 File + 10 Folder. Не было ожидаемо: думал, что без кода граф будет пустой. Это даёт навигацию по docs/, не только по коду.
+- **Cypher работает:** `MATCH (n) RETURN labels(n) as type, count(n) as cnt` — возвращает типы узлов корректно.
+- **`gitnexus status`** — мгновенный, показывает свежесть индекса по сравнению с git commit.
+- **Auto-instrumentation:** автоматически создал `AGENTS.md`, дописал `<!-- gitnexus:start -->` блок в `CLAUDE.md`, сгенерировал `.claude/skills/gitnexus/*/SKILL.md` (6 файлов с инструкциями для Claude Code).
+
+### Что не сработало
+
+- **FTS extension недоступен:** GitNexus пытается скачать `libfts.lbug_extension` с `extension.ladybugdb.com/v0.16.0/linux_amd64/fts/` — в нашем sandboxed environment 403. Без FTS keyword search degraded. Это **сильная network dependency** в production-pipeline.
+- **`gitnexus query` без FTS возвращает пустые results** — `processes: []`, `definitions: []`. Логично, но degradation graceful не объясняется агенту через UX.
+- **Cypher dialect — LadybugDB-specific:** `type(r)` не работает, нужно `label(r)`. Это interoperability concern — Cypher для агента должен быть стандартным openCypher, не LadybugDB-вариант.
+- **`gitnexus context "README"` — Symbol not found:** lookup по строке, не по path. Не fuzzy match. Узнать символ заранее — отдельная задача.
+
+### Implications для ASP-спецификации
+
+1. **Markdown indexing — must-have в ASP.** GitNexus показывает, что documentation flow тоже полезен для агента. ASP должен поддерживать non-code content.
+2. **Cypher как escape hatch — узкое место.** Кодом запросов нельзя пользоваться без знания внутренней schema. ASP должен либо стандартизировать query language, либо избегать его в core operations.
+3. **Auto-instrumentation files — нестандартный паттерн.** GitNexus модифицирует CLAUDE.md и AGENTS.md. Для ASP это должно быть либо опциональной capability, либо вынесено из core spec.
+4. **Network dependencies — risk для adoption.** FTS extension download — single point of failure. ASP-compliant servers должны быть либо offline-first, либо явно объявлять external dependencies.
+5. **Symbol resolution UX — нужен fuzzy lookup.** «Symbol not found» по строгому имени — плохой UX для агента. ASP должен поддерживать ranked search как часть `findSymbol`.
+
+### Интегрировано в наш репо
+
+- `.mcp.json` — project-local MCP config для будущих Claude Code сессий: `npx --yes gitnexus mcp`.
+- Makefile targets: `make index`, `make gn-status`, `make gn-context NAME=...`, `make gn-impact TARGET=...`, `make gn-query Q="..."`, `make gn-clean`.
+- `.gitignore`: `.gitnexus/` (8MB+ LadybugDB файл, регенерируемый).
+- Auto-generated `AGENTS.md`, gitnexus-блок в `CLAUDE.md`, `.claude/skills/gitnexus/` — закоммичены как ground truth.
+- Будет использоваться: как dogfood-source UX-данных для Фазы 1 спецификации; как code intelligence на Фазе 2 прототипа.

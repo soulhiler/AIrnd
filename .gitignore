@@ -3,7 +3,10 @@ scratch/
 *.scratch.md
 
 # Claude Code локальные настройки разрешений
-.claude/
+.claude/settings.local.json
+
+# GitNexus локальный индекс (8MB+, регенерируется через `make index`)
+.gitnexus/
 
 # Editor
 .vscode/

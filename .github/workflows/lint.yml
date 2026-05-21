@@ -23,7 +23,8 @@ jobs:
           npx --yes markdownlint-cli2 \
             "**/*.md" \
             "#node_modules" \
-            "#docs/TZ/**"
+            "#docs/TZ/**" \
+            "#.claude/skills/**"
 
   links:
     runs-on: ubuntu-latest

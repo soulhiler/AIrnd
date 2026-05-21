@@ -4,6 +4,7 @@
   "default": true,
   "MD013": false,          // line length — markdown с длинными строками нормален
   "MD024": { "siblings_only": true }, // одинаковые заголовки в разных секциях ок
+  "MD025": false,          // single H1 — GitNexus auto-append добавляет вторую (см. CLAUDE.md)
   "MD026": false,          // trailing punctuation in heading — нужно для шаблонов с "..."
   "MD032": false,          // blanks around lists — слишком придирчиво
   "MD033": false,          // inline HTML — иногда нужен
