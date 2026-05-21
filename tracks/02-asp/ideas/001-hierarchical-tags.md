@@ -1,63 +1,113 @@
-# 001. Иерархические теги для ранжирования контекста
+# 001. Иерархические теги для поиска кода
 
 - **Дата:** 2026-05-21
 - **Автор:** soulhiler
-- **Статус:** stub — требует уточнения от автора
+- **Статус:** **draft** — интерпретация уточнена 2026-05-21, гипотеза сформулирована
+- **История статуса:** stub (2026-05-21, утром) → draft (2026-05-21, после уточнения)
 
 ## Простыми словами
 
-Идея от автора проекта: проверить, что если использовать **иерархические теги** (когда метки имеют родителей и детей, как папки в файловом дереве: «test/unit», «test/integration»), то выбор подходящего куска кода для AI-помощника станет точнее, чем при «плоских» тегах без вложенности. Конкретное содержание идеи требует уточнения — ниже четыре разумных трактовки.
+Каждый кусок кода (функция, класс, файл) получает **метки в виде дорожек**, как папки в файловом дереве. Например:
 
-## Гипотеза (после уточнения)
+- Функция `test_user_login()` получает метки `["test/unit", "test/auth", "feature/login"]`.
+- Функция `test_api_endpoint()` получает метки `["test/integration", "test/api", "feature/api"]`.
 
-H: «Иерархические теги дают [метрика-X] на [Y%] выше / ниже по сравнению с плоскими тегами на задаче [...]».
+При поиске:
 
-Формулировка будет окончательно зафиксирована после уточнения с автором.
+- Запрос «test» — находит **обе** функции (потому что обе под `test/...`).
+- Запрос «test/unit» — находит только первую.
+- Запрос «feature/login» — находит только первую.
 
-## Возможные интерпретации (требуют уточнения)
+Это похоже на **фасетный поиск в интернет-магазинах** (Amazon: «Электроника → Телефоны → Apple» — каждый уровень сужает результат) или на **расширенные метки в GitHub Issues**, если бы они были вложенными.
 
-В контексте текущего литобзора (Aider RepoMap + GitNexus + Continue.dev), идея «иерархические теги» может означать одно из:
+**Гипотеза:** такие иерархические метки дадут **более точный поиск** для AI-помощника, чем плоские метки или embedding-поиск, особенно на запросах типа «найти все тесты для функции X» или «найти весь код безопасности».
 
-### 1. Иерархические tree-sitter теги
+## Гипотеза (формальная)
 
-Сейчас tree-sitter теги плоские: `name.definition.function`, `name.definition.method`, `name.definition.class`. Идея — заменить на иерархию `definition > callable > function`, `definition > callable > method`, `definition > type > class`. При ранжировании в стиле Aider учитывать «родственность» — функция и метод ближе друг к другу, чем функция и класс. Может улучшить персонализацию multiplier-ов.
+**H1:** Иерархические теги дают **precision@10 на ≥15% выше** по сравнению с плоскими тегами на запросах вида «найти все символы, относящиеся к категории X», на тестовом наборе из ≥100 запросов.
 
-### 2. Иерархический PageRank
+**H2 (вторичная):** Иерархические теги дают **comparable precision** с embedding-based retrieval (Continue-style), но при **значительно меньшем cold-start cost** (нет необходимости считать embeddings для миллионов чанков).
 
-Сейчас Aider считает PageRank на одном графе файлов. Идея — посчитать PageRank на уровнях: модули → файлы → функции. Каждый уровень — свой граф. Финальный ранг — комбинация уровней с весами. Может улучшить precision на больших кодобазах, где «один граф всего» теряет структуру.
+**Null hypothesis (H0):** Иерархические теги не дают статистически значимой разницы по сравнению с плоскими.
 
-### 3. Иерархические теги для семантического поиска
+## Что нужно проверить (план)
 
-Символы получают пути-теги: `test/unit`, `test/integration`, `api/public/v2`. Поиск по «test» возвращает оба test-типа; поиск по «test/integration» — только integration. Расширение Continue.dev's keyword/embedding search «иерархическими фасетами». Уточняет precision-recall trade-off.
+### Шаг 1: Mini prior-art search
 
-### 4. Иерархический бюджет размера ответа
+Прежде чем формализовать эксперимент — нужно найти, делал ли кто-то уже это в коде. Кандидаты для поиска:
 
-Сейчас Aider лимитирует «общий размер» (1024 токена). Идея — распределить бюджет по уровням иерархии символов: 50% на сигнатуры функций, 30% на классы (с их методами в виде сводки), 20% на модули (с их экспортами в виде сводки). Drill-down управляемый клиентом.
+- **Semgrep rule taxonomy** — у них есть `category` и `subcategory`. Это уже иерархия.
+- **GitHub Issue Labels** — обсуждалось ли иерархических.
+- **OpenAPI Tags** — есть ли иерархические extensions.
+- **Code categorization in IDEs** — VS Code symbols, JetBrains structural search.
+- **Knowledge graph projects** — Sourcegraph code intel categories, ctags-language patterns.
+- **Academic literature**: «hierarchical tagging for code search», «faceted code search», «code categorization knowledge graph».
 
-## Что нужно, чтобы проверить
+### Шаг 2: Источник тегов (design choice)
 
-1. **Уточнение от автора** — какая из 4 интерпретаций или другая.
-2. **Baseline implementation** — плоская версия (которая повторяет Aider или Continue).
-3. **Test dataset** — кандидаты: наш AIrnd-репо (markdown-heavy, легко контролировать), SWE-bench Lite (стандарт индустрии), Aider's benchmark.
-4. **Метрика** — зависит от интерпретации:
-   - Для (1): precision-recall на «найти правильный символ для исправления бага».
-   - Для (2): hit rate в top-k результатах.
-   - Для (3): query precision / latency.
-   - Для (4): token efficiency (полезного контента на токен).
-5. **Pre-registration** через `experiments/exp-002-hierarchical-tags/PREREG.md` (если идея созреет).
+**Критический вопрос:** как теги получаются?
+
+| Источник | Pros | Cons |
+|---|---|---|
+| **Manual** (программист пишет `@tag` в комментарии) | Точно | Никто не пишет |
+| **Convention-based** (из пути: `tests/unit/test_x.py` → `test/unit`) | Бесплатно, дисциплина repo | Не покрывает символов без явной структуры |
+| **Inferred LLM** (LLM читает код, предлагает теги) | Гибко | Дорого, шум |
+| **From config** (`.asp-tags.yml` со списком rules) | Контролируемо | Требует поддержки |
+
+Скорее всего — комбинация: convention-based + manual для исключений.
+
+### Шаг 3: Baseline + treatment
+
+Сравнить precision@10 на одном тестовом наборе:
+
+- **Baseline 1:** ripgrep по тексту имени символа.
+- **Baseline 2:** embedding similarity (Continue-style).
+- **Baseline 3:** плоские теги (один уровень, без вложенности).
+- **Treatment:** иерархические теги (≥2 уровня).
+
+### Шаг 4: Test dataset
+
+| Вариант | Pros | Cons |
+|---|---|---|
+| Наш AIrnd-репо | Controlled, малый, мы знаем правильные ответы | Не репрезентативен для production кода |
+| SWE-bench Lite | Индустриальный стандарт | Требует подготовки + он не про search, про fix |
+| Aider's own evals | Публично доступен | Тоже не про search |
+| Synthetic queries on большом OSS проекте (django, vscode) | Реалистично, масштабируемо | Нужно создать ground truth |
+
+Скорее всего — **синтетические запросы на нашем репо + один-два средних OSS проекта**.
+
+### Шаг 5: Метрика
+
+- **Главная:** precision@10 на ranked retrieval.
+- **Вторичные:** recall, NDCG@10, query latency, cold-start indexing time.
+
+### Шаг 6: Pre-registration
+
+Если решение проводить эксперимент — создать `experiments/exp-002-hierarchical-tags/PREREG.md` с финальной гипотезой, baselines, метриками, stop conditions. Сделать git tag `prereg/exp-002-hierarchical-tags/<date>`.
 
 ## Связь с треком
 
-- **Может повлиять на:** Stage 2a операции (`rankRelevant` — наш будущий аналог RepoMap).
+- **Может повлиять на:** Stage 2a операции (`asp/findByTag({tag, hierarchical?})`).
 - **Связано с:**
-  - [Aider RepoMap](../lit-review/gauthier-2024-aider-repomap.md) — tree-sitter теги и PageRank multipliers.
-  - [GitNexus](../lit-review/patwari-2026-gitnexus.md) — typed edges с labels (BaseClass → CALLS → Function), что уже близко к иерархии.
-  - [Continue.dev](../lit-review/continuedev-2026-codebase-indexing.md) — embedding-based retrieval, против которого иерархические теги могут быть структурным дополнением.
-- **Стадия:** stub. Если автор уточняет интерпретацию — переход в draft, далее — pre-reg эксперимент.
+  - [Aider RepoMap](../lit-review/gauthier-2024-aider-repomap.md) — tree-sitter tags (но плоские: `name.definition.function`).
+  - [GitNexus](../lit-review/patwari-2026-gitnexus.md) — typed edges (CALLS, REFERENCES). Категоризация по типу — близка, но не иерархична.
+  - [Continue.dev](../lit-review/continuedev-2026-codebase-indexing.md) — embedding-based search. **Иерархические теги — структурная альтернатива embeddings.** Может быть **значительно дешевле** при сравнимой precision на категорийных запросах.
+- **Стадия:** draft. Если mini prior-art search показывает gap → pre-reg эксперимента. Если кто-то уже сделал — записываем как «изученная prior art», корректируем подход или закрываем.
 
 ## Открытые вопросы
 
-- Q1 (автору): какая из 4 интерпретаций (или какая-то другая) имеется в виду?
-- Q2: с какой prior art работа более перекликается — Aider (tree-sitter), GitNexus (typed graph) или semantic search literature (Solr / Elasticsearch facets)?
-- Q3: какая метрика наиболее важна — точность поиска, эффективность токенов, latency?
-- Q4 (себе): есть ли существующие работы по hierarchical tags в code intelligence? Нужен mini-prior-art search перед формализацией гипотезы.
+- **Q1 (приоритет):** Есть ли existing работы / инструменты, которые уже реализуют hierarchical tags для code search? — нужен mini prior-art search.
+- **Q2:** Сколько уровней иерархии оптимально? Гипотеза: 2-3 (test/unit/auth — выше — diminishing returns).
+- **Q3:** Как теги получаются? Авто из path? Manual в comments? LLM-inferred? **Это критический design choice.**
+- **Q4:** Совместимо ли с embeddings? Можно ли комбинировать (hybrid: embedding similarity + tag filter)?
+- **Q5:** Если идея валидна — это **отдельная ASP operation** (`asp/findByTag`) или **параметр существующей** (`asp/retrieve({filter: {tag: "test/unit"}})`)?
+
+## Отклонённые интерпретации (для истории)
+
+Изначально идея «иерархические теги» имела 4 разумных трактовки. После уточнения 2026-05-21 выбрана **интерпретация №3 (метки для поиска)**. Остальные не отбрасываются полностью — могут стать отдельными идеями в backlog:
+
+- **Hierarchical tree-sitter tags** (def > callable > function вместо плоских) — потенциальная идея №002.
+- **Hierarchical PageRank** (модули → файлы → функции на разных уровнях) — потенциальная идея №003.
+- **Hierarchical token budget** (50% функциям, 30% классам, 20% модулям) — потенциальная идея №004.
+
+Все три остаются как «возможно интересно» — но не активны.
