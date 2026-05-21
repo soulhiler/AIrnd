@@ -2,6 +2,8 @@
 
 LSP стандартизировал общение между редактором и компилятором. Гипотеза трека: стандартизированный протокол для **агентов** (Cursor, Claude Code, Aider, Continue, Cline) даст экосистеме то, что LSP дал IDE-индустрии.
 
+**Артефакт трека:** RFC-спецификация ASP + reference implementation (clean-room, GitNexus parity + 5 UX-исправлений) + test suite. Reference implementation — dogfood-tool, активно используемый в наших проектах. См. [ADR 0001](decisions/0001-mcp-extension-vs-new-protocol.md), [ADR 0002](decisions/0002-asp-scope-opensource-agent-ecosystem-only.md), [ADR 0003](decisions/0003-reference-implementation-cleanroom-build-with-gitnexus-parity-5-fixes.md).
+
 Полная постановка — в `docs/TZ/RD_PROGRAM_TZ.md`, секция «ТРЕК 2».
 
 ## Текущая фаза
@@ -45,18 +47,21 @@ LSP стандартизировал общение между редактор�
 ## Gate 1 → 2 (для справки, активируется после Gate 0 → 1)
 
 - [ ] Spec v0.1 опубликована (GitHub Pages / ReadTheDocs)
-- [ ] Выбран reference language (TypeScript или Python)
-- [ ] Дизайн-choices обоснованы письменно в ADR
+- [ ] Архитектурные ADR для reference implementation приняты: язык, storage, parser, search, MCP packaging (см. [ADR 0003 § Necessary follow-ups](decisions/0003-reference-implementation-cleanroom-build-with-gitnexus-parity-5-fixes.md#necessary-follow-ups))
 - [ ] Формат сообщений специфицирован через JSON Schema
-- [ ] Минимум 3 экспериментальных пользователя подтвердили готовность
+- [ ] Минимум 3 экспериментальных пользователя (OSS agent maintainers) подтвердили готовность
 
 ---
 
 ## Gate 2 → 3
 
-- [ ] Reference server индексирует средний проект (10–100k LOC)
-- [ ] Reference client решает задачи end-to-end
-- [ ] На одной задаче метрики говорят о выигрыше
+Reference implementation проходит три stages (см. [ADR 0003 § Negative.Scope creep](decisions/0003-reference-implementation-cleanroom-build-with-gitnexus-parity-5-fixes.md#negative)):
+
+- [ ] **Stage 2a (MVP-alpha):** 5 операций (index/query/context/impact/detect_changes) + 2 fixes (offline-first FTS, fuzzy lookup); dogfood на нашем репо
+- [ ] **Stage 2b (MVP-beta):** +6 операций (rename/cypher/api_impact/shape_check/route_map/tool_map) + 2 fixes; ≥1 внешний OSS-агент использует
+- [ ] **Stage 2c (parity):** все 16 операций GitNexus + 5-й fix (explicit degradation); готов к extract в отдельный repo
+- [ ] Reference client (Claude Code / Cline) решает задачи end-to-end через ASP
+- [ ] На одной задаче метрики говорят о выигрыше vs GitNexus или ripgrep+AST
 
 ---
 
