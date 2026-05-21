@@ -41,7 +41,7 @@ LSP стандартизировал общение между редактор�
 Переход к Фазе 1 (Дизайн) — только когда выполнено всё:
 
 - [x] Литобзор написан в [`design/01-literature-review.md`](design/01-literature-review.md) (5–10 страниц)
-- [ ] Обработано не менее 10 ключевых работ в [`lit-review/`](lit-review/) (6 из 10: LSP, MCP, tree-sitter, GitNexus, Aider RepoMap, **Continue.dev**). План оставшихся 4: Cline → agentic-codebase/Goose → LSIF/SCIP → SWE-bench (см. [ADR 0002](decisions/0002-asp-scope-opensource-agent-ecosystem-only.md))
+- [ ] Обработано не менее 10 ключевых работ в [`lit-review/`](lit-review/) (7 из 10: LSP, MCP, tree-sitter, GitNexus, Aider RepoMap, Continue.dev, **Cline**). План оставшихся 3: agentic-codebase/Goose → LSIF/SCIP → SWE-bench (см. [ADR 0002](decisions/0002-asp-scope-opensource-agent-ecosystem-only.md))
 - [x] Подтверждено, что точная идея не дублирует существующие публикации (GitNexus решает engineering часть; ASP позиционируется как open RFC поверх — см. [ADR 0001](decisions/0001-mcp-extension-vs-new-protocol.md))
 - [x] Сформулирован gap: чего конкретно не хватает в MCP / LSP / существующих агентах ([§ 7 в литобзоре](design/01-literature-review.md))
 - [x] Принято решение: ASP = open RFC, formalizing GitNexus-style API ([ADR 0001](decisions/0001-mcp-extension-vs-new-protocol.md), accepted 2026-05-21)
