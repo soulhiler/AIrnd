@@ -1,17 +1,17 @@
 # Литературный обзор: Agent Server Protocol (ASP)
 
-**Версия:** 0.1 (draft)
+**Версия:** 0.2 (draft, после ADR 0001)
 **Дата:** 2026-05-21
 **Трек:** 2 — Agent Server Protocol
-**Статус:** обоснование для закрытия [ADR 0001](../decisions/0001-mcp-extension-vs-new-protocol.md), вход в Gate 0 → 1.
+**Статус:** обоснование принятой [ADR 0001](../decisions/0001-mcp-extension-vs-new-protocol.md), вход в Gate 0 → 1.
 
 ---
 
 ## Abstract
 
-Современный стек разработки исторически складывался без учёта того, что в цепочке «человек → инструмент → язык → компилятор → железо» появилось новое звено — LLM-агент. Существующие протоколы интеграции (LSP для редакторов, MCP для тулинга агентов) либо спроектированы под другие потребности (LSP — под точечные запросы редактора), либо слишком обобщены, чтобы выражать code-specific семантику естественно (MCP — generic context bus). В результате каждый агент реализует свою retrieval-логику с нуля, дублирующую работу и расходящуюся в качестве.
+Современный стек разработки исторически складывался без учёта того, что в цепочке «человек → инструмент → язык → компилятор → железо» появилось новое звено — LLM-агент. Существующие протоколы интеграции (LSP для редакторов, MCP для тулинга агентов) либо спроектированы под другие потребности (LSP — под точечные запросы редактора), либо слишком обобщены, чтобы выражать code-specific семантику естественно (MCP — generic context bus). В результате каждый агент реализует свою retrieval-логику с нуля, дублирующую работу и расходящуюся в качестве. Но за последние полтора года появились code-intelligence MCP servers — особенно **GitNexus** (39.5k★, 16 MCP tools) — которые де-факто решили большую часть инженерной задачи без формальной открытой спецификации.
 
-Этот обзор фиксирует текущее состояние области, идентифицирует gap и обосновывает направление для Трека 2: **ASP (Agent Server Protocol) — типизированный code capability поверх MCP**, а не отдельный протокол и не «толстый MCP server».
+Этот обзор фиксирует текущее состояние области, идентифицирует gap и обосновывает направление для Трека 2: **ASP — открытая RFC-спецификация, формализующая GitNexus-style MCP-based code intelligence API как открытый стандарт**, на основе анализа уже работающих implementations (GitNexus как primary reference, agentic-codebase / Aider RepoMap / Continue indexer как secondary).
 
 ---
 
@@ -35,18 +35,18 @@ LSP решил классическую M×N-проблему: M редакто�
 - **Типизация** нужна для 70% (агенты теряются на ad-hoc tool descriptions, что независимо подтверждается работой [arXiv:2602.14878](https://arxiv.org/abs/2602.14878) «MCP Tool Descriptions Are Smelly!»).
 - **Семантические primitives** (findReferences, dependencies, impactAnalysis) фигурируют в ≥10 use cases как first-class.
 
-### 1.3 Гипотеза
+### 1.3 Гипотеза (после анализа prior art)
 
-**ASP — типизированный code capability поверх MCP**, расширяющий MCP-протокол стандартизированными code-specific операциями с фиксированными сигнатурами, опционально композируемыми в batch-запросы.
+**ASP — открытая RFC-спецификация для code intelligence MCP servers**, формализующая де-факто API (на основе GitNexus как primary reference) в виде открытого стандарта с capability discovery, test suite и reference implementation под permissive license.
 
-Эта гипотеза опирается на:
+Гипотеза опирается на:
 
-- Архитектурное наследие LSP в MCP — message-flow модель уже совместима.
-- Существующие prerequisites в MCP — pagination, progress, cancellation, content types.
-- Отсутствие code-specific семантики в MCP как первоклассной концепции.
-- 20 use cases, где такая капабилити была бы естественной.
+- **GitNexus** (39.5k★, см. § 4.3) уже реализовал большую часть code-intelligence MCP-функционала — engineering работа сделана.
+- **License gap:** PolyForm Noncommercial GitNexus блокирует коммерческое использование — индустрии нужна открытая альтернатива.
+- **Architecture gap:** существующие реализации не имеют общего интерфейса — agents с lock-in к конкретному серверу.
+- **20 use cases** ([`02-use-cases.md`](02-use-cases.md)) — эмпирическое основание для отбора operations в стандарт.
 
-Альтернативы (полностью отдельный протокол; набор слабо-типизированных MCP tools) отклоняются по причинам, изложенным в § 4.
+Альтернативы (свой протокол; набор слабо-типизированных MCP tools; полное закрытие трека) рассмотрены и отклонены в [ADR 0001](../decisions/0001-mcp-extension-vs-new-protocol.md).
 
 ---
 
@@ -152,19 +152,26 @@ LSP — отличный референс **дизайна транспорта*
 
 ### 4.3 Code knowledge graphs
 
-**[GitNexus](https://www.marktechpost.com/2026/04/24/meet-gitnexus-an-open-source-mcp-native-knowledge-graph-engine-that-gives-claude-code-and-cursor-full-codebase-structural-awareness/)** — open-source MCP-native knowledge graph для агентов. Даёт Claude Code и Cursor structural awareness кодовой базы.
+**[GitNexus](../lit-review/patwari-2026-gitnexus.md)** (Abhigyan Patwari + Akon Labs, 2024–2026) — **критическая prior art**. После глубокого изучения (см. lit-review запись):
 
-**Важно:** GitNexus — потенциально **прямая prior art** для ASP. Нужно детально изучить:
+- **Метрики:** 39.5k★, 4.5k forks, 288 releases, последний релиз 2026-05-16. Это не proof of concept, а зрелый продукт.
+- **16 MCP tools** (`query`, `context`, `impact`, `detect_changes`, `rename`, `cypher`, `group_*`) + 2 prompts + 7 auto-discoverable resources.
+- **Архитектура:** 12-фазный DAG-конвейер (scan → parse → cross-file → MRO → communities → processes), LadybugDB как графовый бэкенд, FTS + 384D embeddings.
+- **16 поддерживаемых языков** через unified `LanguageProvider` interface.
+- **Confidence scoring** на рёбрах (0.95 / 0.9 / 0.5 / fallback).
+- **Интеграция с агентами:** Claude Code (full: 4 skills + Pre/PostToolUse hooks), Cursor (full), Codex/Windsurf/OpenCode (MCP only).
+- **License:** PolyForm Noncommercial 1.0.0 — open source, но коммерческие агенты использовать не могут.
 
-- Какие операции выставляет.
-- Через MCP tools или через что-то структурированное?
-- Какие use cases покрывает.
+**Покрытие наших use cases:** 12 из 20 GitNexus решает напрямую через tools, ещё несколько — через `cypher` escape hatch.
 
-Если GitNexus делает 80% того, что мы планируем для ASP — нужно либо присоединяться, либо находить отличие.
+GitNexus **уже реализовал** функциональность, которую мы изначально планировали стандартизировать в ASP. Это **переопределяет позиционирование трека** (см. § 8 ниже и [ADR 0001](../decisions/0001-mcp-extension-vs-new-protocol.md)).
 
-**[agentic-codebase](https://github.com/agentralabs/agentic-codebase)** — semantic code intelligence для AI agents с impact analysis, coupling detection, prophecy. Также потенциальная prior art.
+**[agentic-codebase](https://github.com/agentralabs/agentic-codebase)** — semantic code intelligence для AI agents с impact analysis, coupling detection, prophecy. Меньший масштаб, но в том же пространстве. Дополнительный сигнал, что эта область активно осваивается.
 
-**Действие:** добавить обе работы в must-read для глубокого ревью на следующей итерации литобзора.
+**Implications:**
+
+- Engineering работу по «code-aware MCP сервер» делать не нужно — она сделана.
+- Gap, который остался, — **открытая спецификация** API, который GitNexus реализует de facto. Это меняет scope трека (см. § 8).
 
 ---
 
@@ -278,75 +285,90 @@ ASP может частично решить это, но **техническо
 
 ---
 
-## 8. Proposed approach
+## 8. Proposed approach: ASP как open RFC, formalizing GitNexus-style API
 
-### 8.1 ASP как typed code capability над MCP
+**Решение зафиксировано в [ADR 0001](../decisions/0001-mcp-extension-vs-new-protocol.md).** Эта секция объясняет why.
 
-**Архитектурное решение** (для ADR 0001):
+### 8.1 Переопределение задачи после анализа GitNexus
 
-ASP — не отдельный протокол и не набор MCP tools. ASP — **спецификация code-specific capability**, реализуемая MCP-серверами через стандартизированные имена сообщений и фиксированные схемы.
+Изначальная гипотеза была: «ASP — typed code capability over MCP, расширяющий MCP стандартизированными code-specific операциями». После глубокого изучения GitNexus (§ 4.3) обнаружилось, что **этот функционал уже реализован**: 16 MCP tools покрывают большую часть наших use cases, активно используются Claude Code / Cursor / Codex / Windsurf / OpenCode, поддерживают 16 языков.
 
-**Аналогия:** LSP — это «капабилити поверх JSON-RPC». ASP — «капабилити поверх MCP».
+Engineering работу делать не нужно. Что осталось — **формализация**:
 
-**Следствия:**
+- GitNexus tools = de facto standard, но без формальной спецификации.
+- Нет test suite для проверки совместимости.
+- Нет capability discovery: агент не знает заранее, какие операции поддерживает сервер.
+- Нет версионирования API для эволюции без breaking changes.
+- **Главное:** license GitNexus (PolyForm Noncommercial) — закрывает коммерческое использование. Индустрии нужна открытая альтернатива.
 
-- Транспорт, lifecycle, capability negotiation — наследуются от MCP.
-- Любой MCP host (Claude Desktop, Cursor, IDE) автоматически совместим, если поддерживает ASP capability.
-- Любой ASP-сервер — это MCP-сервер с дополнительным набором сообщений.
+### 8.2 Что такое ASP в этой постановке
 
-### 8.2 Core primitives (из анализа use cases)
+**ASP — открытая RFC-спецификация набора MCP capabilities для code intelligence**, основанная на анализе существующих implementations (GitNexus как primary reference, agentic-codebase / Aider RepoMap / Continue indexer как secondary).
 
-Минимальный набор, покрывающий ≥80% use cases:
+**Концептуальная аналогия:**
 
-- `code/findSymbol(query, type=function|class|...)` — поиск символа по имени/типу.
-- `code/findReferences(symbol, contextLines, ranking)` — references с контекстом, ранжированием, бюджетом.
-- `code/dependencies(target, direction, depth)` — граф зависимостей.
-- `code/impactAnalysis(symbol)` — blast radius.
-- `code/usageExamples(symbol, count, diversity)` — типичные примеры использования.
-- `code/moduleSummary(path)` — structured summary.
+| Слой | Что делает | Реализации |
+|---|---|---|
+| MCP | Transport, lifecycle, generic capabilities | Anthropic SDK, ecosystem |
+| **ASP (это мы)** | Code intelligence capability specification | GitNexus, наш reference, future implementations |
+| Application | Конкретные code-MCP-серверы | Akon Labs, in-house solutions |
 
-**Все** возвращают типизированные ответы с явным `tokenBudget` параметром и `truncated` флагом.
+### 8.3 Что ASP включает
 
-### 8.3 Composability
+1. **Спецификация ~10–15 typed operations** на основе анализа GitNexus tools и наших use cases. Примеры (предварительно, для Фазы 1):
+   - `code/findSymbol`, `code/findReferences`, `code/context`
+   - `code/dependencies`, `code/impact`, `code/rename`
+   - `code/detectChanges`, `code/query` (hybrid search), `code/generateMap`
+2. **JSON Schema** для каждой операции (request + response).
+3. **Capability negotiation** — какие из стандартных операций сервер поддерживает.
+4. **Cost awareness** — `tokenBudget` параметр + `truncated` флаг в ответах. Это **дополнение** к GitNexus.
+5. **Test suite** — компатибельность-тесты, которые любой сервер может прогнать.
+6. **Reference implementation** — минимальная, не конкурирующая с GitNexus (например, через простой tree-sitter + SQLite).
+7. **Open license** — Apache 2.0 / CC0 на спецификацию и тесты.
 
-Два механизма (выбор — для Фазы 1):
+### 8.4 Что ASP НЕ делает
 
-- **Batched requests** — `code/compose([op1, op2, op3])` с автоматической передачей результатов между операциями.
-- **GraphQL-стиль** — запрос со вложенной структурой, сервер сам решает выполнение.
+- **Не строит свой transport / lifecycle** — наследует от MCP полностью.
+- **Не конкурирует с GitNexus** — наоборот, GitNexus может объявить compliance с ASP, и его tool API становится открытым стандартом de jure (если автор согласится).
+- **Не покрывает все edge-cases языков** — GitNexus решает это лучше; ASP описывает интерфейс, реализация — за серверами.
+- **Не вводит новые протокольные элементы за пределами MCP** — capability negotiation, content types, pagination, cancellation — всё из MCP.
 
-Predпочтение пока — batched, простота над выразительностью.
+### 8.5 Adoption strategy
 
-### 8.4 Optional capabilities
+Логичный порядок outreach:
 
-- `code/testsCoverage` — требует интеграции с coverage-tools.
-- `code/conventions` — AI-hint, не строгий запрос.
-- `code/findSimilar` — AI-powered, дорогой.
-
-Сервер декларирует, какие из них поддерживает, через MCP capability negotiation.
+1. **GitNexus / Abhigyan Patwari / Akon Labs** — primary target. Предложить участие в RFC, объявить compliance.
+2. **agentic-codebase, Aider RepoMap, Continue indexer** — secondary implementations для разнообразия.
+3. **Anthropic MCP сообщество** — RFC как proposal или discussion в MCP-каналах.
+4. **Закрытые агенты (Cursor, Claude Code, Windsurf)** — после Anthropic, через MCP Foundation channels.
 
 ---
 
 ## 9. Threats to validity
 
-### 9.1 GitNexus / agentic-codebase могут уже это делать
+### 9.1 GitNexus не примет участие в стандартизации
 
-Если они выставляют code-specific операции через стандартизированные MCP tools — ASP добавит ценность только формализацией. **Действие:** глубокое изучение обеих работ на следующей итерации литобзора.
+Если автор GitNexus не заинтересован — RFC может остаться без отношения к производству, и спецификация станет «академической». **Mitigation:** outreach на ранней стадии. Если откажутся — переориентация на secondary implementations (agentic-codebase, Aider RepoMap) как primary reference.
 
 ### 9.2 MCP может эволюционировать сам
 
-Если Anthropic / AAIF добавят code-specific primitives в core MCP — наш отдельный ASP становится избыточным. **Действие:** мониторить MCP discussions, возможно — внести предложение в upstream.
+Если Anthropic / AAIF добавят code-specific primitives в core MCP — наша спецификация становится избыточной. **Mitigation:** контакт с MCP working groups в Linux Foundation; ASP как natural follow-up к base MCP вместо competing initiative.
 
-### 9.3 Adoption барьер
+### 9.3 Низкая академическая новизна
 
-Технически ASP легко добавить. Но если ни один крупный агент не примет — это будет «ещё один standard». **Действие:** на ранней стадии получить **3 экспериментальных пользователя** (Aider, Continue, open-source агент сообщества).
+«Формализация существующего» — менее яркий research contribution, чем «новый протокол». Это сужает venue: больше workshop-ы и SE-конференции, меньше PLDI/POPL. **Mitigation:** искать дополнительную contribution в анализе (например, formal semantics операций, capability negotiation patterns, benchmarking framework).
 
-### 9.4 Слишком абстрактные primitives
+### 9.4 RFC drift от actual implementations
 
-Если operations слишком обобщённые — агенты будут «теряться» так же, как с current MCP tools. **Действие:** валидация на реальных задачах в Фазе 2 (SWE-bench).
+Если ASP-спецификация формально красивая, но не следит за реальной эволюцией GitNexus / других серверов — она становится «бумажным стандартом». **Mitigation:** living spec + версионирование с CI-проверкой совместимости с reference implementations.
 
-### 9.5 Слишком конкретные primitives
+### 9.5 Adoption барьер для коммерческих агентов
 
-Если operations слишком узкие — придётся добавлять новые на каждый use case, как extension hell. **Действие:** баланс через композицию + sane defaults.
+Главная мотивация ASP — открытая альтернатива noncommercial GitNexus. Но если коммерческие агенты предпочтут платную лицензию GitNexus или собственные in-house решения — open spec не получит критической массы. **Mitigation:** получить **3 экспериментальных пользователя** из open-source и close coordination с MCP Foundation.
+
+### 9.6 GitNexus может выпустить свой стандарт
+
+Akon Labs могут сами формализовать API под open license — что технически решает gap, но без участия сообщества. **Mitigation:** быстрая публикация RFC; если опередят — присоединение к их инициативе остаётся опцией.
 
 ---
 
@@ -361,23 +383,24 @@ Predпочтение пока — batched, простота над вырази�
 - **Семантические primitives** для агента — отсутствуют как стандартизированная сущность.
 - **20 use cases** подтверждают потребность в типизации и composability.
 
-### 10.2 Рекомендация для ADR 0001
+### 10.2 ADR 0001 закрыта
 
-**Закрыть ADR 0001 направлением «typed code capability over MCP».**
+[ADR 0001](../decisions/0001-mcp-extension-vs-new-protocol.md) принята со статусом **accepted**:
 
-Конкретные обоснования:
+**ASP позиционируется как открытая RFC-спецификация, формализующая GitNexus-style MCP-based code intelligence API как открытый стандарт.**
 
-1. **Не делать отдельный протокол** — overhead адопшна слишком высок, MCP-экосистема уже даёт критическую массу.
-2. **Не довольствоваться MCP tools** — типизация решает реальную проблему (подтверждено arXiv:2602.14878).
-3. **Стандартизировать code-specific capability** — это даёт интероперабельность для существующих knowledge graphs (GitNexus, agentic-codebase) и обеспечивает migration path для агентов.
+Это не «typed code capability over MCP» (изначальная формулировка), а более узкая и эмпирически обоснованная задача: формализация уже работающего de facto API в открытую спецификацию для других реализаций.
 
-### 10.3 Следующие шаги
+Изменение направления вызвано глубоким разбором GitNexus (§ 4.3), который показал, что engineering уже сделана, а gap — в открытости спецификации и lock-in в noncommercial license.
 
-1. **Глубокое изучение prior art**: GitNexus, agentic-codebase, Aider RepoMap — записи в `lit-review/`.
-2. **arXiv-триаж**: 5–7 работ из списка § 6 в `lit-review/`.
-3. **Закрытие ADR 0001** на основании этого документа + use cases.
-4. **Outreach 3 экспериментальных пользователя**: контакт с авторами Aider, Continue, или известных code-intelligence проектов.
-5. **Переход к Gate 0 → 1 review**.
+### 10.3 Следующие шаги (для Gate 0 → 1 closure)
+
+1. **Глубокий разбор GitNexus tool schemas** — точные JSON forms, edge cases. Чтение `packages/mcp-server/src/` напрямую.
+2. **arXiv-триаж**: 5–7 работ из списка § 6 в `lit-review/` (для достижения ≥10 ключевых работ).
+3. **Lit-review записи** для agentic-codebase, Aider RepoMap.
+4. **Outreach Abhigyan Patwari (GitNexus)** и 2 других экспериментальных пользователя.
+5. **Gate 0 → 1 review** — checklist в `tracks/02-asp/README.md`.
+6. **Постановка Фазы 1** — design-document для структуры спецификации.
 
 ### 10.4 Открытые вопросы для следующих фаз
 

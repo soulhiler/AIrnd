@@ -28,11 +28,11 @@ LSP стандартизировал общение между редактор�
 
 Переход к Фазе 1 (Дизайн) — только когда выполнено всё:
 
-- [ ] Литобзор написан в [`design/01-literature-review.md`](design/) (5–10 страниц)
-- [ ] Обработано не менее 10 ключевых работ в [`lit-review/`](lit-review/)
-- [ ] Подтверждено, что точная идея не дублирует существующие публикации
-- [ ] Сформулирован gap: чего конкретно не хватает в MCP / LSP / существующих агентах
-- [ ] Принято решение: расширение MCP или отдельный протокол ([ADR 0001](decisions/0001-mcp-extension-vs-new-protocol.md))
+- [x] Литобзор написан в [`design/01-literature-review.md`](design/01-literature-review.md) (5–10 страниц)
+- [ ] Обработано не менее 10 ключевых работ в [`lit-review/`](lit-review/) (4 из 10: LSP, MCP, tree-sitter, GitNexus)
+- [x] Подтверждено, что точная идея не дублирует существующие публикации (GitNexus решает engineering часть; ASP позиционируется как open RFC поверх — см. [ADR 0001](decisions/0001-mcp-extension-vs-new-protocol.md))
+- [x] Сформулирован gap: чего конкретно не хватает в MCP / LSP / существующих агентах ([§ 7 в литобзоре](design/01-literature-review.md))
+- [x] Принято решение: ASP = open RFC, formalizing GitNexus-style API ([ADR 0001](decisions/0001-mcp-extension-vs-new-protocol.md), accepted 2026-05-21)
 - [ ] Минимум 3 экспериментальных пользователя готовы попробовать (с собственных проектов)
 
 ---
