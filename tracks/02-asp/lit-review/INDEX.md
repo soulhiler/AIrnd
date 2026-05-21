@@ -14,10 +14,13 @@
 - [x] Aider — открытая архитектура агента (github.com/Aider-AI/aider) → [`gauthier-2024-aider-repomap.md`](gauthier-2024-aider-repomap.md)
 - [x] Continue — JS/TS открытый агент (github.com/continuedev/continue) → [`continuedev-2026-codebase-indexing.md`](continuedev-2026-codebase-indexing.md)
 - [x] Cline — TypeScript агент (github.com/cline/cline) → [`rizwan-2026-cline.md`](rizwan-2026-cline.md)
-- [ ] Codex CLI (если открыт) — TypeScript
-- [ ] arXiv: «agent code protocol» — поиск + триаж
-- [ ] arXiv: «MCP for code» / «AI-native LSP» — поиск + триаж
-- [ ] arXiv: «code context retrieval LLM» — поиск + триаж
+- [x] Goose — Rust OSS-агент (block/goose → Linux Foundation AAIF) → [`block-2026-goose.md`](block-2026-goose.md)
+- [x] SCIP — индустриальный open spec для code indexing (Sourcegraph) → [`sourcegraph-2023-scip.md`](sourcegraph-2023-scip.md)
+- [x] SWE-bench — evaluation benchmark (Princeton NLP) → [`jimenez-2023-swebench.md`](jimenez-2023-swebench.md)
+- [ ] Codex CLI (если открыт) — отложено (commercial-adjacent, out of OSS scope ADR 0002)
+- [ ] arXiv: «agent code protocol» — отложено (3 ключевых OSS-агента + SCIP + SWE-bench покрывают ландшафт)
+- [ ] arXiv: «MCP for code» / «AI-native LSP» — отложено (MCP уже глубоко покрыт)
+- [ ] arXiv: «code context retrieval LLM» — отложено (Aider RepoMap + Continue.dev покрывают подход)
 
 ## Обработанные работы
 
@@ -30,6 +33,9 @@
 | [gauthier-2024-aider-repomap](gauthier-2024-aider-repomap.md) | Aider RepoMap — PageRank-based token-budget-aware code context selection | 2023–2026 | 5 | code-intelligence, tree-sitter, pagerank, token-budget, oss-agent, prior-art |
 | [continuedev-2026-codebase-indexing](continuedev-2026-codebase-indexing.md) | Continue.dev — Embeddings + LanceDB + Tree-sitter Hybrid Codebase Indexing | 2023–2026 | 5 | code-intelligence, embeddings, vector-db, lancedb, hybrid-retrieval, oss-agent, prior-art |
 | [rizwan-2026-cline](rizwan-2026-cline.md) | Cline — Tool-driven autonomous coding agent (on-demand reading) | 2023–2026 | 5 | code-intelligence, oss-agent, mcp-client, tool-use, on-demand-reading, plan-act-modes, prior-art, **critical** |
+| [block-2026-goose](block-2026-goose.md) | Goose — Open-source AI agent с extension framework на MCP (Block → Linux Foundation AAIF) | 2025–2026 | 4 | code-intelligence, oss-agent, mcp-client, extension-framework, rust, linux-foundation, prior-art |
+| [sourcegraph-2023-scip](sourcegraph-2023-scip.md) | SCIP — Code Intelligence Protocol (Sourcegraph, преемник LSIF) | 2023 | 5 | code-intelligence, indexing-format, sourcegraph, protobuf, lsif, open-spec, industry-standard, prior-art, **critical** |
+| [jimenez-2023-swebench](jimenez-2023-swebench.md) | SWE-bench — Evaluation Benchmark для AI-помощников на реальных GitHub issues (Princeton NLP) | 2023 | 5 | evaluation, benchmark, llm-coding, github-issues, swe-bench, princeton-nlp, must-use |
 
 ## Не релевантные (помечены, чтобы не возвращаться)
 
