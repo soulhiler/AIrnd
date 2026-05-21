@@ -27,7 +27,7 @@ phase-status: ## Показать gate-чеклист текущей фазы
 
 lint: ## Markdown lint (требует npx и сеть)
 	@if command -v npx >/dev/null 2>&1; then \
-		npx --yes markdownlint-cli2 "**/*.md" "#node_modules" "#docs/TZ/**" "#.claude/skills/**"; \
+		npx --yes markdownlint-cli2 "**/*.md" "#**/node_modules/**" "#docs/TZ/**" "#.claude/skills/**" "#**/dist/**"; \
 	else \
 		echo "npx не найден — пропускаю lint. Установите Node.js."; \
 	fi

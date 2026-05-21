@@ -1,0 +1,35 @@
+{
+  "name": "asp-ref",
+  "version": "0.1.0-alpha.0",
+  "description": "ASP (Agent Server Protocol) reference implementation — Stage 2a MVP-alpha. See tracks/02-asp/design/03-asp-spec-draft.md for the spec.",
+  "type": "module",
+  "main": "dist/server.js",
+  "bin": {
+    "asp-ref": "dist/server.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/server.ts",
+    "start": "node dist/server.js",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test --import tsx dist/**/*.test.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "license": "Apache-2.0",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ]
+}

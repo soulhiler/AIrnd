@@ -3,6 +3,10 @@
     "gitnexus": {
       "command": "npx",
       "args": ["--yes", "gitnexus", "mcp"]
+    },
+    "asp-ref": {
+      "command": "node",
+      "args": ["tracks/02-asp/prototype/dist/server.js"]
     }
   }
 }

@@ -1,6 +1,6 @@
 # ASP Reference Implementation (workname: `asp-ref`)
 
-**Статус:** заморожено до закрытия [Gate 0 → 1](../README.md#gate-0--1) и принятия архитектурных ADR.
+**Статус:** **Stage 2a — initial scaffold (2026-05-21).** MCP server builds и работает; реализованы baseline operations `asp/readFile` и `asp/listFiles`. SQLite indexing + FTS5 + tree-sitter + `asp/findByTag` + `asp/context` — следующие шаги Stage 2a.
 
 ## Простыми словами
 
@@ -59,5 +59,60 @@ Workname: `asp-ref`. Финальное имя — выбирается пере
 
 ## Файлы здесь
 
-- `README.md` (этот файл) — pre-conditions и stages.
-- Код появится после старта Stage 2a.
+- `README.md` (этот файл) — pre-conditions, stages, current status.
+- `package.json` — npm зависимости (MCP SDK, zod, TypeScript).
+- `tsconfig.json` — strict TS settings.
+- `src/` — TypeScript исходники:
+  - `server.ts` — MCP server entry point.
+  - `types.ts` — типы (Symbol, AspCapabilities, DegradationEntry).
+  - `capabilities.ts` — advertised capabilities (Stage 2a baseline).
+  - `repo-root.ts` — безопасная resolve-функция (защита от path traversal).
+  - `token-estimate.ts` — coarse token counter.
+  - `operations/read-file.ts` — `asp/readFile` (spec 6.2.1).
+  - `operations/list-files.ts` — `asp/listFiles` (spec 6.2.2).
+- `dist/` — скомпилированный JS (генерируется `npm run build`, в `.gitignore`).
+
+## Установка и запуск
+
+```bash
+cd tracks/02-asp/prototype
+npm install
+npm run build
+# Запустить сервер, направив на конкретный репо (по умолчанию cwd):
+node dist/server.js /path/to/repo
+```
+
+В `.mcp.json` корня AIrnd уже добавлена конфигурация — Claude Code загрузит `asp-ref` автоматически.
+
+## Quick test (через stdio)
+
+```bash
+# Build first
+npm run build
+
+# Send 4 requests via stdio
+(echo '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}},"id":1}'
+ echo '{"jsonrpc":"2.0","method":"tools/list","params":{},"id":2}'
+ echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"asp_capabilities","arguments":{}},"id":3}'
+ echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"asp_listFiles","arguments":{"path":"tracks/02-asp/decisions"}},"id":4}'
+) | node dist/server.js /home/user/AIrnd
+```
+
+## Что работает (Stage 2a scaffold)
+
+- ✅ MCP server bootstrap (stdio transport).
+- ✅ `tools/list` advertising 3 tools.
+- ✅ `asp_capabilities` — возвращает Stage 2a capabilities.
+- ✅ `asp_readFile` с path traversal protection, line range, token budget enforcement.
+- ✅ `asp_listFiles` с glob filters, gitignore respect, recursive option.
+- ✅ Error model (codes -32100..-32105 per spec Section 8.1).
+- ✅ Empty `degradation: []` array in normal mode (per spec Section 8.2).
+
+## Что **не** работает (TODO Stage 2a)
+
+- 🚧 `asp/searchFiles` — нужен SQLite FTS5 (ADR 0007).
+- 🚧 `asp/findByTag` — нужен tree-sitter + tag generator (ADR 0008 + 0004).
+- 🚧 `asp/context` — нужен symbol index (ADR 0007).
+- 🚧 Persistent index в `.asp/index.db` — нужен полный indexer pipeline.
+- 🚧 Markdown sections как symbols (как наш toy в `ideas/001-toy/`).
+- 🚧 Tests.

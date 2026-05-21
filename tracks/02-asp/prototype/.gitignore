@@ -1,0 +1,5 @@
+node_modules/
+dist/
+.asp/
+*.log
+.DS_Store
