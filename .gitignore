@@ -8,6 +8,9 @@ scratch/
 # GitNexus локальный индекс (8MB+, регенерируется через `make index`)
 .gitnexus/
 
+# asp-ref локальный индекс (регенерируется при первом запуске сервера)
+.asp/
+
 # Editor
 .vscode/
 .idea/

@@ -15,15 +15,15 @@ import { ASP_VERSION } from "./types.js";
  */
 export const STAGE_2A_CAPABILITIES: AspCapabilities = {
   version: ASP_VERSION,
-  tier: 1, // baseline only at scaffold; bumps to 2 when findByTag lands
-  tagSchema: "none", // bumps to "hierarchical" when indexer lands
-  tagSources: [], // bumps to ["path", "markdown-headings"] when indexer lands
-  retrievalModes: [], // Stage 2b
+  tier: 2, // baseline + indexed (FTS5 keyword retrieval)
+  tagSchema: "hierarchical", // populated by markdown-indexer (path + headings)
+  tagSources: ["path", "markdown-headings"],
+  retrievalModes: ["keyword"], // FTS5 only; vector / graph / hybrid pending
   impactAnalysis: false, // Stage 2c
   streaming: false, // v0.2
   tokenBudget: {
     default: 4096,
     max: 32768,
   },
-  mutations: [], // read-only for scaffold; writeFile/applyPatch in Stage 2b
+  mutations: [], // read-only; writeFile/applyPatch in Stage 2b
 };

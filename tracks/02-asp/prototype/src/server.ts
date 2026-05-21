@@ -19,12 +19,15 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { STAGE_2A_CAPABILITIES } from "./capabilities.js";
+import { fullScan } from "./index/indexer.js";
+import { IndexStore, defaultIndexPath } from "./index/store.js";
 import { listFilesOp } from "./operations/list-files.js";
 import {
   BinaryFileError,
   NotFoundError,
   readFileOp,
 } from "./operations/read-file.js";
+import { makeSearchFilesOp } from "./operations/search-files.js";
 import { PathForbiddenError, setRepoRoot } from "./repo-root.js";
 import { SERVER_INFO } from "./types.js";
 
@@ -55,6 +58,35 @@ async function main(): Promise<void> {
   const repoRoot =
     process.argv[2] ?? process.env["ASP_REPO_ROOT"] ?? process.cwd();
   setRepoRoot(repoRoot);
+
+  // Initialize SQLite index store. Schema is created on first run.
+  const store = new IndexStore(defaultIndexPath(repoRoot));
+  let indexReady = store.countSymbols() > 0;
+  const searchFilesOp = makeSearchFilesOp({
+    store,
+    indexBuilt: () => indexReady,
+  });
+
+  // Background initial scan if index is empty. We don't block startup; the
+  // first search query will report partial-index degradation until done.
+  if (!indexReady) {
+    console.error("[asp-ref] Index empty; starting background scan...");
+    void fullScan({
+      root: repoRoot,
+      store,
+      onProgress: (n) => console.error(`[asp-ref]   ...${n} files processed`),
+    }).then((stats) => {
+      indexReady = true;
+      console.error(
+        `[asp-ref] Initial scan complete: ${stats.filesProcessed} files, ` +
+          `${stats.symbolsIndexed} symbols, ${stats.durationMs}ms.`,
+      );
+    });
+  } else {
+    console.error(
+      `[asp-ref] Index ready: ${store.countSymbols()} symbols.`,
+    );
+  }
 
   const server = new Server(
     {
@@ -115,6 +147,31 @@ async function main(): Promise<void> {
           },
         },
         {
+          name: "asp_searchFiles",
+          description:
+            "ASP operation `asp/searchFiles`. Full-text search over indexed markdown via SQLite FTS5. Offline-first; no external dependencies.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              query: { type: "string", minLength: 1 },
+              regex: {
+                type: "boolean",
+                description:
+                  "Stage 2a degraded: regex falls back to phrase match with a degradation entry.",
+              },
+              raw: {
+                type: "boolean",
+                description:
+                  "Pass the query string through to FTS5 unmodified (allows AND, OR, NEAR, column filters).",
+              },
+              include: { type: "array", items: { type: "string" } },
+              limit: { type: "integer", minimum: 1, maximum: 500 },
+              tokenBudget: { type: "integer", minimum: 1 },
+            },
+            required: ["query"],
+          },
+        },
+        {
           name: "asp_capabilities",
           description:
             "Return advertised ASP capabilities (spec Section 5). Stable across this server lifetime.",
@@ -136,6 +193,12 @@ async function main(): Promise<void> {
         }
         case "asp_listFiles": {
           const result = await listFilesOp(args ?? {});
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          };
+        }
+        case "asp_searchFiles": {
+          const result = await searchFilesOp(args ?? {});
           return {
             content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
           };

@@ -63,13 +63,21 @@ Workname: `asp-ref`. Финальное имя — выбирается пере
 - `package.json` — npm зависимости (MCP SDK, zod, TypeScript).
 - `tsconfig.json` — strict TS settings.
 - `src/` — TypeScript исходники:
-  - `server.ts` — MCP server entry point.
+  - `server.ts` — MCP server entry point (wiring + initial scan).
   - `types.ts` — типы (Symbol, AspCapabilities, DegradationEntry).
-  - `capabilities.ts` — advertised capabilities (Stage 2a baseline).
+  - `capabilities.ts` — advertised capabilities.
   - `repo-root.ts` — безопасная resolve-функция (защита от path traversal).
   - `token-estimate.ts` — coarse token counter.
-  - `operations/read-file.ts` — `asp/readFile` (spec 6.2.1).
-  - `operations/list-files.ts` — `asp/listFiles` (spec 6.2.2).
+  - `operations/`
+    - `read-file.ts` — `asp/readFile` (spec 6.2.1).
+    - `list-files.ts` — `asp/listFiles` (spec 6.2.2).
+    - `search-files.ts` — `asp/searchFiles` через FTS5 (spec 6.2.3).
+  - `index/`
+    - `schema.ts` — SQLite DDL (symbols + tags + symbols_fts + triggers).
+    - `store.ts` — IndexStore wrapper с prepared statements.
+    - `walker.ts` — repo walker (respects .gitignore, deny patterns).
+    - `markdown-indexer.ts` — порт нашего toy: file + section symbols, hierarchical tags.
+    - `indexer.ts` — fullScan() pipeline.
 - `dist/` — скомпилированный JS (генерируется `npm run build`, в `.gitignore`).
 
 ## Установка и запуск
@@ -98,21 +106,26 @@ npm run build
 ) | node dist/server.js /home/user/AIrnd
 ```
 
-## Что работает (Stage 2a scaffold)
+## Что работает (Stage 2a — part 2)
 
 - ✅ MCP server bootstrap (stdio transport).
-- ✅ `tools/list` advertising 3 tools.
-- ✅ `asp_capabilities` — возвращает Stage 2a capabilities.
+- ✅ `tools/list` advertising 4 tools.
+- ✅ `asp_capabilities` — tier 2, tagSchema hierarchical, retrievalModes [keyword].
 - ✅ `asp_readFile` с path traversal protection, line range, token budget enforcement.
 - ✅ `asp_listFiles` с glob filters, gitignore respect, recursive option.
+- ✅ **`asp_searchFiles` через SQLite FTS5** — наш fix #1 (offline-first FTS).
+- ✅ **Persistent index в `.asp/index.db`** — schema_version, symbols + tags + symbols_fts (FTS5 external-content).
+- ✅ **Markdown indexer** — file symbols + section symbols + hierarchical tags (path + heading-level + parent-section) — порт нашего toy из `ideas/001-toy/`.
+- ✅ **Background initial scan** при пустом индексе. На AIrnd-репо: 48 файлов / 988 символов / ~330мс.
+- ✅ **`partial-index` degradation** возвращается, пока background scan не завершён.
 - ✅ Error model (codes -32100..-32105 per spec Section 8.1).
-- ✅ Empty `degradation: []` array in normal mode (per spec Section 8.2).
+- ✅ Empty `degradation: []` array в нормальном режиме (per spec Section 8.2).
 
-## Что **не** работает (TODO Stage 2a)
+## Что **не** работает (TODO Stage 2a — part 3)
 
-- 🚧 `asp/searchFiles` — нужен SQLite FTS5 (ADR 0007).
-- 🚧 `asp/findByTag` — нужен tree-sitter + tag generator (ADR 0008 + 0004).
-- 🚧 `asp/context` — нужен symbol index (ADR 0007).
-- 🚧 Persistent index в `.asp/index.db` — нужен полный indexer pipeline.
-- 🚧 Markdown sections как symbols (как наш toy в `ideas/001-toy/`).
+- 🚧 `asp/findByTag` — есть таблица tags, нужна только operation handler.
+- 🚧 `asp/context` — есть parent_id и tags, нужна только operation handler.
+- 🚧 `asp/refresh` — нужно вынести fullScan() в operation.
+- 🚧 tree-sitter для кода (.py, .ts, .rs, ...) — сейчас только markdown.
+- 🚧 Incremental re-index по mtime — сейчас только full scan.
 - 🚧 Tests.
