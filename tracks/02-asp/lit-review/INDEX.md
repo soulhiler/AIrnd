@@ -24,6 +24,7 @@
 | [microsoft-2022-lsp-spec](microsoft-2022-lsp-spec.md) | Language Server Protocol 3.17 Specification | 2022 | 5 | lsp, protocol, primary-source |
 | [anthropic-2024-mcp-spec](anthropic-2024-mcp-spec.md) | Model Context Protocol Specification | 2024–2025 | 5 | mcp, protocol, primary-source, agent-integration |
 | [brunsfeld-2018-tree-sitter](brunsfeld-2018-tree-sitter.md) | Tree-sitter — Incremental Parsing System | 2018 | 4 | parsing, ast, tool, foundation |
+| [patwari-2026-gitnexus](patwari-2026-gitnexus.md) | GitNexus — MCP-Native Knowledge Graph | 2024–2026 | 5 | mcp, code-intelligence, prior-art, **critical** |
 
 ## Не релевантные (помечены, чтобы не возвращаться)
 
