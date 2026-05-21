@@ -6,9 +6,9 @@
 
 Список из ТЗ — то, что должно быть обработано до Gate 0 → 1:
 
-- [ ] LSP specification (Microsoft, microsoft.github.io/language-server-protocol)
-- [ ] Model Context Protocol (Anthropic, modelcontextprotocol.io)
-- [ ] Tree-sitter — incremental parsing (tree-sitter.github.io)
+- [x] LSP specification (Microsoft, microsoft.github.io/language-server-protocol) → [`microsoft-2022-lsp-spec.md`](microsoft-2022-lsp-spec.md)
+- [x] Model Context Protocol (Anthropic, modelcontextprotocol.io) → [`anthropic-2024-mcp-spec.md`](anthropic-2024-mcp-spec.md)
+- [x] Tree-sitter — incremental parsing (tree-sitter.github.io) → [`brunsfeld-2018-tree-sitter.md`](brunsfeld-2018-tree-sitter.md)
 - [ ] Aider — открытая архитектура агента (github.com/Aider-AI/aider)
 - [ ] Continue — JS/TS открытый агент (github.com/continuedev/continue)
 - [ ] Cline — TypeScript агент (github.com/cline/cline)
@@ -21,7 +21,9 @@
 
 | Slug | Title | Year | Relevance | Tags |
 |---|---|---|---|---|
-| _нет записей_ | | | | |
+| [microsoft-2022-lsp-spec](microsoft-2022-lsp-spec.md) | Language Server Protocol 3.17 Specification | 2022 | 5 | lsp, protocol, primary-source |
+| [anthropic-2024-mcp-spec](anthropic-2024-mcp-spec.md) | Model Context Protocol Specification | 2024–2025 | 5 | mcp, protocol, primary-source, agent-integration |
+| [brunsfeld-2018-tree-sitter](brunsfeld-2018-tree-sitter.md) | Tree-sitter — Incremental Parsing System | 2018 | 4 | parsing, ast, tool, foundation |
 
 ## Не релевантные (помечены, чтобы не возвращаться)
 
