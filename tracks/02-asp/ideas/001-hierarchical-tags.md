@@ -2,8 +2,8 @@
 
 - **Дата:** 2026-05-21
 - **Автор:** soulhiler
-- **Статус:** **draft** — интерпретация уточнена 2026-05-21, гипотеза сформулирована
-- **История статуса:** stub (2026-05-21, утром) → draft (2026-05-21, после уточнения)
+- **Статус:** **under-investigation** — интерпретация уточнена + mini prior-art search завершён 2026-05-21
+- **История статуса:** stub (2026-05-21, утром) → draft (2026-05-21, дневная сессия, интерпретация выбрана) → under-investigation (2026-05-21, вечер, prior art search закрыт)
 
 ## Простыми словами
 
@@ -30,20 +30,58 @@
 
 **Null hypothesis (H0):** Иерархические теги не дают статистически значимой разницы по сравнению с плоскими.
 
-## Что нужно проверить (план)
+## Prior art search (выполнено 2026-05-21)
 
-### Шаг 1: Mini prior-art search
+### Что найдено
 
-Прежде чем формализовать эксперимент — нужно найти, делал ли кто-то уже это в коде. Кандидаты для поиска:
+1. **Semgrep — единственная production-реализация hierarchical taxonomy для кода.**
+   - Rule namespace: `<language>/<framework>/<category>/$MORE` (например, `python/django/security/sqli-injection`).
+   - Поля `category` (security / correctness / best-practice / performance / maintainability / portability) + `subcategory` (vuln / audit / guardrail).
+   - Также: hierarchical metadata через CWE classifications.
+   - Производство: тысячи rules, 45+ enterprises. **Подтверждает viability hierarchical metadata в коде.**
+   - **Ограничение для нас:** Semgrep tags только для правил (rules), не для всех символов кодобазы. Scope ≠ наш scope (миллионы символов vs тысячи rules).
+   - Источник тегов у них: manual (авторы правил пишут metadata). Конвенция-из-пути отсутствует.
 
-- **Semgrep rule taxonomy** — у них есть `category` и `subcategory`. Это уже иерархия.
-- **GitHub Issue Labels** — обсуждалось ли иерархических.
-- **OpenAPI Tags** — есть ли иерархические extensions.
-- **Code categorization in IDEs** — VS Code symbols, JetBrains structural search.
-- **Knowledge graph projects** — Sourcegraph code intel categories, ctags-language patterns.
-- **Academic literature**: «hierarchical tagging for code search», «faceted code search», «code categorization knowledge graph».
+2. **Hierarchical Faceted Metadata (CHI 2002, Hearst et al., UC Berkeley)** — академический фоундейшн.
+   - Project «Flamenco» (UC Berkeley). 24-летняя established theory.
+   - Hierarchical Faceted Categories (HFC) показали выигрыш vs кластеризация и плоские категории в user studies на library catalogs / scientific archives.
+   - **Не применялось к code search** в этой работе. Это gap, который наша работа может закрыть.
+   - Ссылка: <https://flamenco.berkeley.edu/papers/flamenco-shortpaper02.pdf>.
 
-### Шаг 2: Источник тегов (design choice)
+3. **SCIP (Sourcegraph Code Intelligence Protocol) — НЕ имеет hierarchical tags.**
+   - `Kind` enum (86+ values: Class, Method, Function...) — **плоский namespace**.
+   - `SymbolRole` bitset (Definition, Import, WriteAccess, ReadAccess, Generated, Test) — **плоские флаги**.
+   - Hierarchical только в AST scope (`enclosing_symbol`, `enclosing_range`), не в categorical taxonomy.
+   - **Это явный gap.** ASP может это закрыть.
+   - Schema: <https://github.com/sourcegraph/scip/blob/main/scip.proto>.
+
+4. **Sourcegraph code search** — boolean filters (language, repo, path, author), search contexts (boolean scoping). **Нет hierarchical tags.**
+
+5. **ctags** — есть `kind` field (короткие однобуквенные коды: c, f, m) + AST scope hierarchy через `tracks scope for proper tag hierarchy`. Но это **scope hierarchy** (что внутри чего по синтаксическому дереву), не **categorical hierarchy** (test/unit vs test/integration). Different axis.
+
+### Что значит для нашей идеи
+
+- **Не начинаем с нуля** — есть established теория (CHI 2002) и одна production-реализация (Semgrep).
+- **Не дублируем Semgrep** — у нас другой scope (все символы кодобазы) + другой источник тегов (convention-based из path + manual, а не только manual).
+- **Закрываем явный gap в SCIP/LSIF** — применение hierarchical faceted theory к code intelligence через ASP.
+- **Потенциальный contribution в трёх аспектах:**
+  1. **Scope:** все символы кодобазы (не только security rules как у Semgrep).
+  2. **Source:** convention-based (auto из path) + manual + LLM-inferred (вместо только manual).
+  3. **Standard:** через открытую ASP-спеку (cross-tool), а не proprietary каждого инструмента.
+
+### Уточнённая гипотеза (после prior art)
+
+**H1 (base):** Иерархические теги для всех символов кодобазы дают precision@10 на ≥15% выше, чем плоские теги, на категорийных запросах. **Низкий риск** — Semgrep почти доказал это для своего narrower scope.
+
+**H2 (ambitious):** Convention-based hierarchical tags + manual overrides дают comparable precision с embedding-based retrieval (Continue-style) при значительно меньшем cold-start cost. **Средний риск** — это unexplored area.
+
+**H3 (research contribution):** ASP-стандартизированный hierarchical tag schema может стать accepted convention в OSS agent ecosystem (по аналогии с `.gitignore`). **Высокий риск** — adoption зависит от outreach, не только от данных.
+
+### Что ещё проверить (после prior art search)
+
+Из изначального плана остаются актуальными:
+
+### Источник тегов (design choice)
 
 **Критический вопрос:** как теги получаются?
 
@@ -56,7 +94,7 @@
 
 Скорее всего — комбинация: convention-based + manual для исключений.
 
-### Шаг 3: Baseline + treatment
+### Baseline + treatment
 
 Сравнить precision@10 на одном тестовом наборе:
 
@@ -65,7 +103,7 @@
 - **Baseline 3:** плоские теги (один уровень, без вложенности).
 - **Treatment:** иерархические теги (≥2 уровня).
 
-### Шаг 4: Test dataset
+### Test dataset
 
 | Вариант | Pros | Cons |
 |---|---|---|
@@ -76,14 +114,25 @@
 
 Скорее всего — **синтетические запросы на нашем репо + один-два средних OSS проекта**.
 
-### Шаг 5: Метрика
+### Метрика
 
 - **Главная:** precision@10 на ranked retrieval.
 - **Вторичные:** recall, NDCG@10, query latency, cold-start indexing time.
 
-### Шаг 6: Pre-registration
+### Pre-registration
 
 Если решение проводить эксперимент — создать `experiments/exp-002-hierarchical-tags/PREREG.md` с финальной гипотезой, baselines, метриками, stop conditions. Сделать git tag `prereg/exp-002-hierarchical-tags/<date>`.
+
+### Рекомендация после prior art search
+
+**Идея валидна и worth pre-registration.** Конкретные next steps:
+
+1. **Решение по интеграции с трек** — обсудить:
+   - Стать **частью ASP-спеки** (как стандартизованный capability — `tagSchema: "hierarchical"`)? Это сильный signal.
+   - Или оставить **отдельным экспериментом** (выпускается как отдельный paper / dataset, не часть ASP v0.1)?
+2. **Прежде чем pre-reg — попробовать «toy implementation»** на нашем AIrnd-репо. Это дешёвая sanity check: посмотреть, дают ли convention-based hierarchical tags вообще sensible результаты на 25 файлах + 411 markdown sections.
+3. **Связаться с автором Semgrep** (или просто прочитать их internal docs) — узнать, есть ли у них data на effectiveness hierarchical tags. Не factual paper, но industrial signal.
+4. **Прочитать Hearst et al. CHI 2002** полностью — для design principles hierarchical facets (depth, balance, navigation UX).
 
 ## Связь с треком
 
