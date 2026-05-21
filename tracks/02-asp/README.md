@@ -14,11 +14,16 @@ LSP стандартизировал общение между редактор�
 
 ## Текущая фаза
 
-**Фаза 0 — Подготовка (литобзор)**
+**Фаза 1 — Дизайн (написание спецификации)**
 
-- Старт: 2026-05-21
-- Целевая длительность: 3–4 недели
-- Цель: понять текущее положение дел (LSP, MCP, open-source агенты), сформулировать gap, выбрать «расширение MCP vs отдельный протокол».
+- Фаза 0 закрыта: 2026-05-21 (1 день вместо плановых 3-4 недели благодаря Claude Code-assisted research).
+- Фаза 1 старт: 2026-05-21.
+- Целевая длительность: 4 недели.
+- Цель: написать черновик ASP-спецификации v0.1 (Capabilities + Operations + Symbol schema + Error model + JSON Schema). Outreach начинается ближе к концу Фазы 1 (см. [ADR 0005](decisions/0005-outreach-deferred-gate-0-to-1-closes-without-user-commitments.md)).
+
+### Фаза 0 — закрыта (2026-05-21)
+
+Литобзор закрыт: 10/10 работ обработано. 5 архитектурных ADR (0001-0005) приняты. Идея 001 (hierarchical tags) повышена до ADR 0004 + toy implementation. Outreach отложен до Gate 1 → 2 (ADR 0005).
 
 ## Карта артефактов
 
@@ -36,26 +41,24 @@ LSP стандартизировал общение между редактор�
 
 **Урок 2026-05-21:** глубокий разбор GitNexus (39.5k★, 16 MCP tools) после foundational литобзора показал, что точная engineering задача уже решена. Это привело к [переопределению направления](decisions/0001-mcp-extension-vs-new-protocol.md) с «строить ASP» на «формализовать GitNexus API как open RFC». В будущих треках — **prior art search до foundational литобзора** ([workflow](../../docs/workflows/prior-art-search.md)). Это сэкономило бы день; в более сложных случаях могло бы сэкономить недели.
 
-## Gate 0 → 1
-
-Переход к Фазе 1 (Дизайн) — только когда выполнено всё:
+## Gate 0 → 1 — **ЗАКРЫТ 2026-05-21** ✅
 
 - [x] Литобзор написан в [`design/01-literature-review.md`](design/01-literature-review.md) (5–10 страниц)
-- [x] Обработано не менее 10 ключевых работ в [`lit-review/`](lit-review/): **10/10** ✅ — LSP, MCP, tree-sitter, GitNexus, Aider RepoMap, Continue.dev, Cline, Goose, SCIP, SWE-bench (см. [`lit-review/INDEX.md`](lit-review/INDEX.md))
+- [x] Обработано не менее 10 ключевых работ в [`lit-review/`](lit-review/): **10/10** — LSP, MCP, tree-sitter, GitNexus, Aider RepoMap, Continue.dev, Cline, Goose, SCIP, SWE-bench (см. [`lit-review/INDEX.md`](lit-review/INDEX.md))
 - [x] Подтверждено, что точная идея не дублирует существующие публикации (GitNexus решает engineering часть; ASP позиционируется как open RFC поверх — см. [ADR 0001](decisions/0001-mcp-extension-vs-new-protocol.md))
 - [x] Сформулирован gap: чего конкретно не хватает в MCP / LSP / существующих агентах ([§ 7 в литобзоре](design/01-literature-review.md))
 - [x] Принято решение: ASP = open RFC, formalizing GitNexus-style API ([ADR 0001](decisions/0001-mcp-extension-vs-new-protocol.md), accepted 2026-05-21)
 - [x] Scope зафиксирован: **open-source agent ecosystem only** ([ADR 0002](decisions/0002-asp-scope-opensource-agent-ecosystem-only.md), accepted 2026-05-21)
-- [ ] Минимум 3 экспериментальных пользователя из open-source agent maintainers готовы попробовать (candidates: Aider, Continue.dev, Cline, GitNexus, Goose — см. ADR 0002)
+- [~] ~~Минимум 3 экспериментальных пользователя~~ — **deferred to Gate 1 → 2** per [ADR 0005](decisions/0005-outreach-deferred-gate-0-to-1-closes-without-user-commitments.md). Outreach без artifact = слабый pitch; делаем после spec sketch.
 
 ---
 
-## Gate 1 → 2 (для справки, активируется после Gate 0 → 1)
+## Gate 1 → 2 (АКТИВНЫЙ)
 
 - [ ] Spec v0.1 опубликована (GitHub Pages / ReadTheDocs)
 - [ ] Архитектурные ADR для reference implementation приняты: язык, storage, parser, search, MCP packaging (см. [ADR 0003 § Necessary follow-ups](decisions/0003-reference-implementation-cleanroom-build-with-gitnexus-parity-5-fixes.md#necessary-follow-ups))
 - [ ] Формат сообщений специфицирован через JSON Schema
-- [ ] Минимум 3 экспериментальных пользователя (OSS agent maintainers) подтвердили готовность
+- [ ] **Outreach completed:** ≥3 OSS agent maintainers contacted, ≥1 expressed positive interest (verbal commitment, code review, или PR) — per [ADR 0005](decisions/0005-outreach-deferred-gate-0-to-1-closes-without-user-commitments.md). Targets: Cline (Saoud Rizwan, priority №1), Goose (Linux Foundation AAIF), Aider (Paul Gauthier), Continue.dev, GitNexus (Patwari — private heads-up).
 
 ---
 
