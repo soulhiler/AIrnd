@@ -1,0 +1,43 @@
+name: lint
+
+on:
+  push:
+    branches:
+      - main
+      - "claude/**"
+  pull_request:
+
+jobs:
+  markdown:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: markdownlint
+        run: |
+          npx --yes markdownlint-cli2 \
+            "**/*.md" \
+            "#node_modules" \
+            "#docs/TZ/**"
+
+  links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: lychee link checker
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: >-
+            --no-progress
+            --max-concurrency 4
+            --exclude-path docs/TZ
+            --exclude 'modelcontextprotocol.io'
+            --exclude 'tree-sitter.github.io'
+            './**/*.md'
+          fail: false

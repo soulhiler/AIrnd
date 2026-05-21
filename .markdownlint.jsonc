@@ -1,0 +1,9 @@
+{
+  // Lean конфигурация: фокус на структурных ошибках, не на стиле
+  "default": true,
+  "MD013": false,          // line length — markdown с длинными строками нормален для нас
+  "MD024": { "siblings_only": true }, // одинаковые заголовки в разных секциях ок
+  "MD033": false,          // inline HTML — иногда нужен
+  "MD041": false,          // first line H1 — не всегда applicable (templates)
+  "MD036": false           // emphasis as heading — для подзаголовков ок
+}

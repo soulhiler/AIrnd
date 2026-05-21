@@ -1,0 +1,33 @@
+# Локальные scratch-папки
+scratch/
+*.scratch.md
+
+# Claude Code локальные настройки разрешений
+.claude/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python (для будущих скриптов)
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Node (для будущего прототипа)
+node_modules/
+dist/
+build/
+
+# Эксперименты — сырые большие данные не коммитим
+tracks/*/experiments/*/results/raw/
+*.parquet
+*.sqlite
+*.db
