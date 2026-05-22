@@ -13,6 +13,7 @@
  */
 
 import type Anthropic from "@anthropic-ai/sdk";
+import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import type { DegradationEntry, Symbol as AspSymbol } from "../types.js";
 
 export type RerankProvider = "anthropic" | "sampling" | "disabled";
@@ -29,6 +30,15 @@ export interface RerankOutput {
 }
 
 let cachedClient: Anthropic | null = null;
+let mcpServerRef: Server | null = null;
+
+/**
+ * Server bootstrap wires its MCP server instance here so the sampling
+ * provider can issue `sampling/createMessage` requests back to the client.
+ */
+export function setMcpServer(server: Server | null): void {
+  mcpServerRef = server;
+}
 
 export function resolveProvider(): RerankProvider {
   const explicit = process.env["ASP_RERANK_PROVIDER"];
@@ -55,19 +65,7 @@ export async function maybeRerank(input: RerankInput): Promise<RerankOutput> {
     };
   }
   if (provider === "sampling") {
-    return {
-      ordering: null,
-      degradation: [
-        {
-          feature: "rerank",
-          reason:
-            "MCP sampling rerank provider is not yet implemented (ADR 0009 follow-up)",
-          impact:
-            "Results are ordered by first-stage ranking only (vector / keyword similarity)",
-          severity: "info",
-        },
-      ],
-    };
+    return tryMcpSampling(input);
   }
   // provider === 'anthropic'
   try {
@@ -192,4 +190,120 @@ async function getAnthropicClient(): Promise<Anthropic | null> {
   } catch {
     return null;
   }
+}
+
+/**
+ * MCP sampling: server requests the client (which holds the LLM) to do the
+ * rerank for us. Cleanest fit with ADR 0002 (OSS-agent scope) — no API key
+ * on the server side. Falls back gracefully if the client doesn't advertise
+ * the sampling capability.
+ */
+async function tryMcpSampling(input: RerankInput): Promise<RerankOutput> {
+  if (mcpServerRef === null) {
+    return {
+      ordering: null,
+      degradation: [
+        {
+          feature: "rerank",
+          reason:
+            "MCP sampling requested but server reference is not wired (internal init order)",
+          impact:
+            "Results are ordered by first-stage ranking only",
+          severity: "warning",
+        },
+      ],
+    };
+  }
+
+  const prompt = buildRerankPrompt(input);
+
+  try {
+    // Untyped `as any` for the SDK helper: createMessage isn't on every SDK
+    // surface; we feature-detect at call time.
+    type ServerWithCreate = Server & {
+      createMessage?: (req: {
+        messages: Array<{ role: "user"; content: { type: "text"; text: string } }>;
+        maxTokens: number;
+        modelPreferences?: { hints?: Array<{ name: string }> };
+      }) => Promise<{
+        content: { type: "text"; text: string } | { type: string };
+      }>;
+    };
+    const helper = (mcpServerRef as ServerWithCreate).createMessage;
+    if (typeof helper !== "function") {
+      return {
+        ordering: null,
+        degradation: [
+          {
+            feature: "rerank",
+            reason:
+              "Active MCP SDK version does not expose createMessage; cannot use sampling",
+            impact:
+              "Results are ordered by first-stage ranking only",
+            severity: "info",
+          },
+        ],
+      };
+    }
+    const response = await helper({
+      messages: [
+        {
+          role: "user",
+          content: { type: "text", text: prompt },
+        },
+      ],
+      maxTokens: Math.min(2048, input.nFinal * 256),
+    });
+    const block = response.content;
+    const text =
+      block.type === "text" ? (block as { text: string }).text : "";
+    const ids = parseIdOrdering(text, input.candidates).slice(0, input.nFinal);
+    if (ids.length === 0) {
+      return {
+        ordering: null,
+        degradation: [
+          {
+            feature: "rerank",
+            reason: "Sampling response did not contain parseable IDs",
+            impact: "Falling back to first-stage ranking",
+            severity: "warning",
+          },
+        ],
+      };
+    }
+    return { ordering: ids, degradation: [] };
+  } catch (e) {
+    return {
+      ordering: null,
+      degradation: [
+        {
+          feature: "rerank",
+          reason: `MCP sampling failed: ${(e as Error).message}`,
+          impact:
+            "Results are ordered by first-stage ranking only (client may not advertise the sampling capability)",
+          severity: "info",
+        },
+      ],
+    };
+  }
+}
+
+function buildRerankPrompt(input: RerankInput): string {
+  const promptCandidates = input.candidates
+    .map((c, i) => {
+      const tags = (c.tags ?? []).slice(0, 6).join(", ");
+      const snippet = (c.snippet ?? "").replace(/\s+/g, " ").slice(0, 240);
+      return `[${i}] id=${c.id} tags=${tags} snippet=${snippet}`;
+    })
+    .join("\n");
+  return [
+    "You are reranking code-intelligence search results for a user query.",
+    `Query: ${input.query}`,
+    "",
+    "Candidates (indexed [0]..[N-1]):",
+    promptCandidates,
+    "",
+    `Return the top ${input.nFinal} candidate IDs in order of relevance.`,
+    "Reply with ONE id per line, no prose, no explanation.",
+  ].join("\n");
 }

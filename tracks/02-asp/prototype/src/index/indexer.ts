@@ -174,8 +174,15 @@ export async function fullScan(opts: ScanOptions): Promise<IndexStats> {
   let edgesResolved = 0;
   for (const [srcId, batch] of edgesBySrc) {
     opts.store.resetEdgesFor(srcId);
+    // Look up the caller's path so we can rank in-file matches first.
+    const caller = opts.store.getSymbolById(srcId);
+    const callerPath = caller?.path ?? null;
     for (const edge of batch) {
-      const candidates = opts.store.findSymbolsByName(edge.dstName);
+      const candidates = opts.store.findSymbolsByNameRanked(
+        edge.dstName,
+        callerPath,
+        8,
+      );
       for (const dstId of candidates) {
         if (dstId === srcId) continue; // skip self-loops
         opts.store.upsertEdge(srcId, dstId, edge.kind);

@@ -10,7 +10,7 @@
  *  - 2b: vector embeddings (separate store, likely LanceDB rather than vss).
  *  - 2c: graph edges (references / referents) for asp/impact.
  */
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 export const SCHEMA_DDL = `
 CREATE TABLE IF NOT EXISTS schema_meta (
@@ -75,6 +75,18 @@ CREATE TABLE IF NOT EXISTS edges (
 
 CREATE INDEX IF NOT EXISTS idx_edges_src ON edges(src_symbol_id);
 CREATE INDEX IF NOT EXISTS idx_edges_dst ON edges(dst_symbol_id);
+
+-- Stage 2c+: persistent job records so async refreshes survive process
+-- restart. Caller polls via asp/refreshStatus.
+CREATE TABLE IF NOT EXISTS jobs (
+  job_id TEXT PRIMARY KEY,
+  kind TEXT NOT NULL,
+  status TEXT NOT NULL,
+  started_at INTEGER NOT NULL,
+  completed_at INTEGER,
+  result_json TEXT,
+  error TEXT
+);
 
 -- FTS5 over symbol snippets and IDs. We use external-content storage so
 -- that updates to the symbols table cascade via triggers below.

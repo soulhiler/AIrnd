@@ -165,6 +165,55 @@ const RULES: Record<string, DefinitionRule[]> = {
       kindTag: "kind/callable/function",
     },
   ],
+  c: [
+    {
+      nodeTypes: ["function_definition"],
+      symbolKind: "function",
+      kindTag: "kind/callable/function",
+    },
+    {
+      nodeTypes: ["struct_specifier", "union_specifier"],
+      symbolKind: "class",
+      kindTag: "kind/type/class",
+    },
+    {
+      nodeTypes: ["enum_specifier"],
+      symbolKind: "enum",
+      kindTag: "kind/type/enum",
+    },
+    {
+      nodeTypes: ["type_definition"],
+      symbolKind: "type",
+      kindTag: "kind/type/typedef",
+    },
+  ],
+  cpp: [
+    {
+      nodeTypes: ["function_definition"],
+      symbolKind: "function",
+      kindTag: "kind/callable/function",
+    },
+    {
+      nodeTypes: ["class_specifier", "struct_specifier"],
+      symbolKind: "class",
+      kindTag: "kind/type/class",
+    },
+    {
+      nodeTypes: ["enum_specifier"],
+      symbolKind: "enum",
+      kindTag: "kind/type/enum",
+    },
+    {
+      nodeTypes: ["namespace_definition"],
+      symbolKind: "module",
+      kindTag: "kind/container/module",
+    },
+    {
+      nodeTypes: ["template_declaration"],
+      symbolKind: "type",
+      kindTag: "kind/type/typedef",
+    },
+  ],
 };
 
 function tsRules(): DefinitionRule[] {

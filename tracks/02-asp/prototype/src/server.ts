@@ -20,6 +20,7 @@ import {
 import { z } from "zod";
 import { STAGE_2A_CAPABILITIES } from "./capabilities.js";
 import { fullScan } from "./index/indexer.js";
+import { globalJobs } from "./index/jobs.js";
 import { IndexStore, defaultIndexPath } from "./index/store.js";
 import { applyPatchOp, PatchConflictError, PatchMalformedError } from "./operations/apply-patch.js";
 import { makeContextOp } from "./operations/context.js";
@@ -33,6 +34,7 @@ import {
 } from "./operations/read-file.js";
 import { makeRefreshOp, refreshStatusOp } from "./operations/refresh.js";
 import { makeRetrieveOp } from "./operations/retrieve.js";
+import { setMcpServer } from "./operations/rerank.js";
 import { makeSearchFilesOp } from "./operations/search-files.js";
 import { FileExistsError, writeFileOp } from "./operations/write-file.js";
 import { PathForbiddenError, setRepoRoot } from "./repo-root.js";
@@ -68,6 +70,7 @@ async function main(): Promise<void> {
 
   // Initialize SQLite index store. Schema is created on first run.
   const store = new IndexStore(defaultIndexPath(repoRoot));
+  globalJobs.bind(store);
   let indexReady = store.countSymbols() > 0;
   const searchFilesOp = makeSearchFilesOp({
     store,
@@ -135,6 +138,10 @@ async function main(): Promise<void> {
       },
     },
   );
+
+  // Wire the server into the rerank module so the sampling provider can
+  // request LLM completions from the client.
+  setMcpServer(server);
 
   // Expose ASP capabilities via the MCP `_meta` field on initialize.
   // The MCP SDK doesn't have first-class ASP capability advertising yet;

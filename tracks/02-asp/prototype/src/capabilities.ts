@@ -49,4 +49,6 @@ export const PARSER_COVERAGE = [
   "c_sharp",
   "ruby",
   "bash",
+  "c",
+  "cpp",
 ];

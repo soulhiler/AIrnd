@@ -40,6 +40,12 @@ const EXT_TO_LANG: Record<string, string> = {
   ".rb": "ruby",
   ".sh": "bash",
   ".bash": "bash",
+  ".c": "c",
+  ".h": "c",
+  ".cpp": "cpp",
+  ".cc": "cpp",
+  ".cxx": "cpp",
+  ".hpp": "cpp",
 };
 
 export function langForPath(relPath: string): string | null {

@@ -77,6 +77,10 @@ export class IndexStore {
     findByAnchorSuffix: Database.Statement;
     edgesOutgoing: Database.Statement;
     edgesIncoming: Database.Statement;
+    findByAnchorSuffixInFile: Database.Statement;
+    upsertJob: Database.Statement;
+    getJob: Database.Statement;
+    deleteOldJobs: Database.Statement;
   };
 
   constructor(dbPath: string) {
@@ -207,6 +211,30 @@ export class IndexStore {
       ),
       edgesIncoming: this.db.prepare(
         `SELECT src_symbol_id, kind FROM edges WHERE dst_symbol_id = ?`,
+      ),
+      // Same as findByAnchorSuffix but constrained to a path — used by the
+      // edge resolver to prefer in-file matches over arbitrary same-name
+      // symbols elsewhere in the repo.
+      findByAnchorSuffixInFile: this.db.prepare(`
+        SELECT id FROM symbols
+        WHERE path = @path AND (anchor = @name OR anchor LIKE @suffix)
+      `),
+      upsertJob: this.db.prepare(`
+        INSERT INTO jobs (job_id, kind, status, started_at, completed_at,
+                          result_json, error)
+        VALUES (@jobId, @kind, @status, @startedAt, @completedAt,
+                @resultJson, @error)
+        ON CONFLICT(job_id) DO UPDATE SET
+          status=excluded.status,
+          completed_at=excluded.completed_at,
+          result_json=excluded.result_json,
+          error=excluded.error
+      `),
+      getJob: this.db.prepare(
+        `SELECT * FROM jobs WHERE job_id = ?`,
+      ),
+      deleteOldJobs: this.db.prepare(
+        `DELETE FROM jobs WHERE completed_at IS NOT NULL AND completed_at < ?`,
       ),
     };
   }
@@ -434,6 +462,77 @@ export class IndexStore {
       kind: string;
     }>;
     return rows.map((r) => ({ src: r.src_symbol_id, kind: r.kind }));
+  }
+
+  /**
+   * Find candidate symbols for an unresolved call. Prefers (in order):
+   *  1. matches in the same file as the caller (in-file definitions),
+   *  2. matches anywhere in the repo (over-approximation).
+   * Returns at most `limit` IDs.
+   */
+  findSymbolsByNameRanked(
+    name: string,
+    callerPath: string | null,
+    limit = 8,
+  ): string[] {
+    const out: string[] = [];
+    if (callerPath !== null) {
+      const local = this.stmts.findByAnchorSuffixInFile.all({
+        path: callerPath,
+        name,
+        suffix: `%.${name}`,
+      }) as Array<{ id: string }>;
+      for (const row of local) {
+        if (!out.includes(row.id)) out.push(row.id);
+      }
+    }
+    if (out.length >= limit) return out.slice(0, limit);
+    const global = this.findSymbolsByName(name);
+    for (const id of global) {
+      if (!out.includes(id)) out.push(id);
+      if (out.length >= limit) break;
+    }
+    return out;
+  }
+
+  upsertJob(opts: {
+    jobId: string;
+    kind: string;
+    status: string;
+    startedAt: number;
+    completedAt: number | null;
+    resultJson: string | null;
+    error: string | null;
+  }): void {
+    this.stmts.upsertJob.run(opts);
+  }
+
+  getJob(jobId: string): {
+    job_id: string;
+    kind: string;
+    status: string;
+    started_at: number;
+    completed_at: number | null;
+    result_json: string | null;
+    error: string | null;
+  } | null {
+    const row = this.stmts.getJob.get(jobId) as
+      | {
+          job_id: string;
+          kind: string;
+          status: string;
+          started_at: number;
+          completed_at: number | null;
+          result_json: string | null;
+          error: string | null;
+        }
+      | undefined;
+    return row ?? null;
+  }
+
+  pruneOldJobs(olderThanMs: number): number {
+    const info = this.stmts.deleteOldJobs.run(Date.now() - olderThanMs);
+    return Number(info.changes);
   }
 
   private hydrateSymbol(row: RawSymbolRow): SymbolRow {
