@@ -1,5 +1,5 @@
 import { existsSync, realpathSync } from "node:fs";
-import { basename, dirname, isAbsolute, normalize, resolve, sep } from "node:path";
+import { basename, dirname, isAbsolute, normalize, relative, resolve, sep } from "node:path";
 import { pathHasSensitiveSegment, tryRealpath } from "./security.js";
 
 /**
@@ -11,9 +11,11 @@ import { pathHasSensitiveSegment, tryRealpath } from "./security.js";
  *    symlinked working directory is compared against its real target.
  *  - User-supplied paths are first normalised, then `realpath`'d if they
  *    exist, then compared against the real root. This defeats symlink
- *    escape, where `repo/foo` is a symlink pointing at `/etc/passwd`.
- *  - Sensitive filenames (`.env`, `.pem`, `id_rsa`, ...) are rejected at
- *    this layer too, so neither readFile nor writeFile can touch them.
+ *    escape where a path inside the repo points outside.
+ *  - Sensitive filenames are rejected BOTH on the user-supplied form AND
+ *    on the post-canonicalisation form. The second check closes an
+ *    in-repo bypass: `data.json` → `.env` symlink lets the denylist
+ *    miss the first check but the canonicalised name `.env` is caught.
  */
 
 let configuredRoot: string | null = null;
@@ -33,7 +35,8 @@ export function getRepoRoot(): string {
 /**
  * Resolve a user-supplied path relative to repo root, rejecting anything
  * that escapes the root via `..`, absolute paths, symlink trickery, or
- * sensitive-filename matches.
+ * sensitive-filename matches (checked on both the user form and the
+ * canonical form).
  *
  * Returns absolute (and, where possible, canonicalised) path; throws
  * `PathForbiddenError` otherwise.
@@ -48,8 +51,8 @@ export function resolveSafe(userPath: string): string {
   const root = getRepoRoot();
   const naive = normalize(resolve(root, userPath));
 
-  // Reject before even touching the filesystem if the relative form steps
-  // outside the root or matches a sensitive name.
+  // Reject before touching the filesystem if the relative form steps
+  // outside the root or matches a sensitive name on its face.
   if (naive !== root && !naive.startsWith(root + sep)) {
     throw new PathForbiddenError(`Path escapes repo root: ${userPath}`);
   }
@@ -59,13 +62,24 @@ export function resolveSafe(userPath: string): string {
     );
   }
 
-  // Canonicalise via realpath where possible and re-check containment.
-  // If the file does not exist yet (e.g. writeFile creating a new file),
-  // walk up to the nearest existing ancestor and canonicalise that.
+  // Canonicalise via realpath where possible. For a not-yet-existing path
+  // (writeFile creating a new file) we walk up to the nearest existing
+  // ancestor and canonicalise that, then append the tail.
   const real = canonicaliseWithExistingAncestor(naive);
   if (real !== root && !real.startsWith(root + sep)) {
     throw new PathForbiddenError(
       `Path resolves outside repo root via symlink: ${userPath}`,
+    );
+  }
+
+  // Post-canonicalisation denylist check — closes the in-repo symlink
+  // bypass: a non-sensitive alias inside the repo (e.g. `data.json`)
+  // that points at a sensitive target (e.g. `.env`) must still be
+  // rejected.
+  const realRel = relative(root, real);
+  if (realRel.length > 0 && pathHasSensitiveSegment(realRel)) {
+    throw new PathForbiddenError(
+      `Sensitive target rejected after realpath (denylist match on canonical form: ${realRel})`,
     );
   }
   return real;

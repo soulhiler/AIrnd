@@ -47,6 +47,7 @@ import { SERVER_INFO } from "./types.js";
 import {
   appendFileSync,
   existsSync,
+  lstatSync,
   readFileSync,
   writeFileSync,
 } from "node:fs";
@@ -561,10 +562,28 @@ function ensureGitignoreEntry(repoRoot: string): void {
   if (process.env["ASP_SKIP_GITIGNORE"] === "1") return;
   const giPath = join(repoRoot, ".gitignore");
   const entry = ".asp/";
+  // Patterns that mean "we already ignore the index". A user might write
+  // `.asp/`, `.asp`, `/.asp/`, or `/.asp` — all valid gitignore forms.
+  const acceptedVariants = new Set([
+    ".asp/",
+    ".asp",
+    "/.asp/",
+    "/.asp",
+  ]);
   try {
-    if (!existsSync(giPath)) {
-      // Only auto-create .gitignore in a git repo to avoid creating files
-      // in unrelated directories. Detection is best-effort.
+    // Refuse to follow a symlink — `.gitignore` should be a regular
+    // file. If it's a symlink (e.g. to `~/.bashrc`), bail with a
+    // warning rather than appending out-of-repo.
+    if (existsSync(giPath)) {
+      const st = lstatSync(giPath);
+      if (st.isSymbolicLink()) {
+        console.error(
+          `[asp-ref] .gitignore is a symlink; refusing to modify. Add '${entry}' manually if you want the local index ignored.`,
+        );
+        return;
+      }
+    } else {
+      // Only auto-create in a git repo. Detection is best-effort.
       const gitDir = join(repoRoot, ".git");
       if (!existsSync(gitDir)) return;
       writeFileSync(giPath, `${entry}\n`, "utf-8");
@@ -573,7 +592,7 @@ function ensureGitignoreEntry(repoRoot: string): void {
     }
     const current = readFileSync(giPath, "utf-8");
     const lines = current.split(/\r?\n/);
-    const already = lines.some((l) => l.trim() === entry || l.trim() === entry.slice(0, -1));
+    const already = lines.some((l) => acceptedVariants.has(l.trim()));
     if (!already) {
       const sep = current.endsWith("\n") ? "" : "\n";
       appendFileSync(giPath, `${sep}# asp-ref local index\n${entry}\n`, "utf-8");

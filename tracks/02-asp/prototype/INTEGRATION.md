@@ -294,8 +294,11 @@ deserialisation.
 
 How this affects asp-ref:
 
-- The server is local and consumes protobuf only from your own Hugging
-  Face cache (a trusted source you control).
+- The server is local. Embedding model is hardcoded to
+  `Xenova/all-MiniLM-L6-v2` and is not user-configurable through the
+  public API, so the trust boundary is "the Xenova HF account is not
+  compromised" rather than "the HF hub at large is trusted" (the hub
+  is a public CDN with anonymous uploads).
 - Embeddings are off by default (`ASP_ENABLE_EMBEDDINGS` unset) — the
   vulnerable code path isn't loaded at all in baseline operation.
 - Network egress is limited to the first-time model download from

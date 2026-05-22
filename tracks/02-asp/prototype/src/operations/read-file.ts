@@ -33,10 +33,9 @@ export interface ReadFileResult {
 
 export async function readFileOp(rawParams: unknown): Promise<ReadFileResult> {
   const params = ReadFileParamsSchema.parse(rawParams);
-  // Secret denylist check runs BEFORE path resolution so we never even
-  // stat a sensitive file. resolveSafe also enforces it, but doing it
-  // here makes the error message specific and lets us avoid race
-  // conditions where the user names a symlink that points at a secret.
+  // Early secret-name reject for a clearer error message. resolveSafe
+  // also enforces the denylist twice (before and after realpath) — see
+  // src/repo-root.ts for the symlink-bypass story.
   if (pathHasSensitiveSegment(params.path)) {
     throw new PathForbiddenError(
       `Sensitive path rejected (matches secret/key denylist): ${params.path}`,

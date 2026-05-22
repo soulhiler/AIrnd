@@ -40,7 +40,7 @@ Alex предложил конкретные fixes («ASP_ENABLE_MUTATIONS=1 gat
 
 - Добавлен `ASP_ENABLE_MUTATIONS` env. По умолчанию **off**.
 - `asp_writeFile` и `asp_applyPatch` вызывают `mutationsEnabled()` в начале и бросают `MutationsDisabledError` (`-32109`) с подсказкой как включить.
-- Поле `capabilities.mutations` динамически отражает состояние gate.
+- Поле `capabilities.mutations` вычисляется один раз на старте сервера из env (не «динамически» в смысле re-evaluation per request — env не меняется после spawn).
 - Tools всё равно advertise через `tools/list` — клиенты, которые проверяют `capabilities`, увидят пустой массив; клиенты, которые сразу зовут tool, получат внятную ошибку.
 - Исключение: `asp_applyPatch({dryRun: true})` тоже gated — единообразие политики важнее лёгкого UX для dryRun.
 

@@ -81,5 +81,5 @@ export const ASP_VERSION = "0.1";
 
 export const SERVER_INFO = {
   name: "asp-ref",
-  version: "0.1.0-alpha.0",
+  version: "0.1.2-alpha.0",
 } as const;

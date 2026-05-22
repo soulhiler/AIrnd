@@ -72,12 +72,12 @@ export async function applyPatchOp(
 ): Promise<ApplyPatchResult> {
   const params = ApplyPatchParamsSchema.parse(rawParams);
   const dryRun = params.dryRun ?? false;
-  // Even dryRun is gated: parsing & validating a patch on behalf of an
-  // untrusted client is fine, but we want a single uniform policy so
-  // there's no "is it on or off?" ambiguity for users.
-  if (!mutationsEnabled() && !dryRun) {
+  // Per ADR 0010 §1: dryRun is gated as well. The dryRun branch still
+  // reads file contents and could be used as a read primitive via
+  // conflict messages, so we keep the policy uniform.
+  if (!mutationsEnabled()) {
     throw new MutationsDisabledError(
-      "asp_applyPatch is disabled. Set ASP_ENABLE_MUTATIONS=1 to opt in. Use dryRun=true to validate without writing.",
+      "asp_applyPatch is disabled. Set ASP_ENABLE_MUTATIONS=1 to opt in.",
     );
   }
   const degradation: DegradationEntry[] = [];
@@ -158,6 +158,26 @@ export async function applyPatchOp(
     conflicts,
     degradation,
   };
+}
+
+/**
+ * Conflict messages used to embed `JSON.stringify(line)` of both the
+ * expected and the actual file content, which made the dryRun branch
+ * (gated as of v0.1.2 but historically exposed) a read primitive. We
+ * now return a length + FNV-1a 8-hex digest instead.
+ */
+function summariseLine(text: string | undefined): string {
+  if (text === undefined) return "<EOF>";
+  return `<${text.length} chars, hash=${fnv1aHex8(text)}>`;
+}
+
+function fnv1aHex8(text: string): string {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash.toString(16).padStart(8, "0");
 }
 
 function stripDiffPrefix(p: string): string {
@@ -281,9 +301,9 @@ function applyHunksToText(
         if (orig === undefined || orig !== hl.text) {
           conflicts.push({
             hunkIndex: hunkIdx,
-            reason: `Context mismatch at line ${cursor + 1}: expected ${JSON.stringify(
+            reason: `Context mismatch at line ${cursor + 1}: expected ${summariseLine(
               hl.text,
-            )}, got ${JSON.stringify(orig ?? "<EOF>")}`,
+            )}, got ${summariseLine(orig)}`,
           });
           return;
         }
@@ -294,9 +314,9 @@ function applyHunksToText(
         if (orig === undefined || orig !== hl.text) {
           conflicts.push({
             hunkIndex: hunkIdx,
-            reason: `Removal mismatch at line ${cursor + 1}: expected ${JSON.stringify(
+            reason: `Removal mismatch at line ${cursor + 1}: expected ${summariseLine(
               hl.text,
-            )}, got ${JSON.stringify(orig ?? "<EOF>")}`,
+            )}, got ${summariseLine(orig)}`,
           });
           return;
         }
