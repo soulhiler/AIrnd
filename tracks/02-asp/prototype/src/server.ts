@@ -36,9 +36,21 @@ import { makeRefreshOp, refreshStatusOp } from "./operations/refresh.js";
 import { makeRetrieveOp } from "./operations/retrieve.js";
 import { setMcpServer } from "./operations/rerank.js";
 import { makeSearchFilesOp } from "./operations/search-files.js";
-import { FileExistsError, writeFileOp } from "./operations/write-file.js";
+import {
+  FileExistsError,
+  MutationsDisabledError,
+  writeFileOp,
+} from "./operations/write-file.js";
 import { PathForbiddenError, setRepoRoot } from "./repo-root.js";
+import { mutationsEnabled } from "./security.js";
 import { SERVER_INFO } from "./types.js";
+import {
+  appendFileSync,
+  existsSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
+import { join } from "node:path";
 
 // ASP error codes (spec Section 8.1).
 const ERR_CAPABILITY_REQUIRED = -32100;
@@ -67,6 +79,13 @@ async function main(): Promise<void> {
   const repoRoot =
     process.argv[2] ?? process.env["ASP_REPO_ROOT"] ?? process.cwd();
   setRepoRoot(repoRoot);
+  ensureGitignoreEntry(repoRoot);
+
+  console.error(
+    `[asp-ref] Mutations: ${
+      mutationsEnabled() ? "ENABLED (writeFile, applyPatch)" : "disabled (set ASP_ENABLE_MUTATIONS=1 to opt in)"
+    }`,
+  );
 
   // Initialize SQLite index store. Schema is created on first run.
   const store = new IndexStore(defaultIndexPath(repoRoot));
@@ -489,6 +508,12 @@ function handleError(e: unknown): {
   } else if (e instanceof FileExistsError) {
     code = -32106; // asp_file_exists
     message = e.message;
+  } else if (e instanceof MutationsDisabledError) {
+    code = -32109; // asp_mutations_disabled
+    message = e.message;
+    data = {
+      hint: "Restart the server with ASP_ENABLE_MUTATIONS=1 in env, or use asp_applyPatch with dryRun=true for non-destructive validation.",
+    };
   } else if (e instanceof PatchConflictError) {
     code = -32107; // asp_patch_conflict
     message = e.message;
@@ -521,6 +546,43 @@ function handleError(e: unknown): {
       },
     ],
   };
+}
+
+/**
+ * Hardening: ensure the repo's `.gitignore` contains `.asp/` so the SQLite
+ * index file never pollutes a working tree. Idempotent. If the file doesn't
+ * exist, we create it with our entry; otherwise we append only if absent.
+ *
+ * If the repo isn't a git repo (no `.git`), we don't write anything to
+ * avoid surprising users. The presence of `.gitignore` is the trigger:
+ * if it's already there, we've earned the right to add to it.
+ */
+function ensureGitignoreEntry(repoRoot: string): void {
+  if (process.env["ASP_SKIP_GITIGNORE"] === "1") return;
+  const giPath = join(repoRoot, ".gitignore");
+  const entry = ".asp/";
+  try {
+    if (!existsSync(giPath)) {
+      // Only auto-create .gitignore in a git repo to avoid creating files
+      // in unrelated directories. Detection is best-effort.
+      const gitDir = join(repoRoot, ".git");
+      if (!existsSync(gitDir)) return;
+      writeFileSync(giPath, `${entry}\n`, "utf-8");
+      console.error(`[asp-ref] Created ${giPath} with '${entry}'.`);
+      return;
+    }
+    const current = readFileSync(giPath, "utf-8");
+    const lines = current.split(/\r?\n/);
+    const already = lines.some((l) => l.trim() === entry || l.trim() === entry.slice(0, -1));
+    if (!already) {
+      const sep = current.endsWith("\n") ? "" : "\n";
+      appendFileSync(giPath, `${sep}# asp-ref local index\n${entry}\n`, "utf-8");
+      console.error(`[asp-ref] Appended '${entry}' to ${giPath}.`);
+    }
+  } catch (e) {
+    // Soft-fail — gitignore is convenience, not correctness.
+    console.error(`[asp-ref] Could not update .gitignore: ${(e as Error).message}`);
+  }
 }
 
 main().catch((e) => {

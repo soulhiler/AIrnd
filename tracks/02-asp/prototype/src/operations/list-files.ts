@@ -2,6 +2,10 @@ import { readdir, stat, readFile } from "node:fs/promises";
 import { join, relative } from "node:path";
 import { z } from "zod";
 import { getRepoRoot, resolveSafe } from "../repo-root.js";
+import {
+  SENSITIVE_DIR_NAMES,
+  isSensitiveBasename,
+} from "../security.js";
 import type { DegradationEntry } from "../types.js";
 
 /**
@@ -77,6 +81,8 @@ async function walk(
   const entries = await readdir(abs, { withFileTypes: true });
   for (const entry of entries) {
     if (entry.name === ".git" || entry.name === "node_modules") continue;
+    if (SENSITIVE_DIR_NAMES.has(entry.name)) continue;
+    if (isSensitiveBasename(entry.name)) continue;
     const entryAbs = join(abs, entry.name);
     const entryRel = relative(root, entryAbs);
     const isDir = entry.isDirectory();

@@ -1,9 +1,16 @@
 import { readdir, readFile, stat } from "node:fs/promises";
 import { join, relative } from "node:path";
+import {
+  SENSITIVE_DIR_NAMES,
+  isSensitiveBasename,
+} from "../security.js";
 
 /**
  * Repository walker used by the indexer. Respects `.gitignore` (best-effort,
  * not full git semantics) and hard-coded deny patterns for noise directories.
+ *
+ * Sensitive-filename rules live in `../security.ts` and are shared with
+ * `resolveSafe` so the indexer and readFile/writeFile use the same denylist.
  *
  * Yields paths relative to repo root.
  */
@@ -21,17 +28,8 @@ const HARD_DENY = new Set([
   ".next",
   ".cache",
   ".turbo",
+  ...SENSITIVE_DIR_NAMES,
 ]);
-
-const SENSITIVE_PATTERNS: RegExp[] = [
-  /^\.env(\..*)?$/,
-  /\.env$/,
-  /\.pem$/,
-  /\.key$/,
-  /^id_rsa/,
-  /^credentials\.json$/,
-  /^service-account\.json$/,
-];
 
 export interface WalkOptions {
   root: string;
@@ -106,7 +104,7 @@ async function* walkDir(
 }
 
 function isSensitiveName(name: string): boolean {
-  return SENSITIVE_PATTERNS.some((re) => re.test(name));
+  return isSensitiveBasename(name);
 }
 
 function matchesAny(path: string, patterns: RegExp[]): boolean {

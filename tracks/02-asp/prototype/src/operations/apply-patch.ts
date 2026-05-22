@@ -1,6 +1,8 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { z } from "zod";
 import { resolveSafe } from "../repo-root.js";
+import { mutationsEnabled } from "../security.js";
+import { MutationsDisabledError } from "./write-file.js";
 import type { DegradationEntry } from "../types.js";
 
 /**
@@ -70,6 +72,14 @@ export async function applyPatchOp(
 ): Promise<ApplyPatchResult> {
   const params = ApplyPatchParamsSchema.parse(rawParams);
   const dryRun = params.dryRun ?? false;
+  // Even dryRun is gated: parsing & validating a patch on behalf of an
+  // untrusted client is fine, but we want a single uniform policy so
+  // there's no "is it on or off?" ambiguity for users.
+  if (!mutationsEnabled() && !dryRun) {
+    throw new MutationsDisabledError(
+      "asp_applyPatch is disabled. Set ASP_ENABLE_MUTATIONS=1 to opt in. Use dryRun=true to validate without writing.",
+    );
+  }
   const degradation: DegradationEntry[] = [];
 
   if (params.patch.includes("Binary files")) {

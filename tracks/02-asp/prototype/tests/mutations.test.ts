@@ -1,14 +1,60 @@
-import { test } from "node:test";
+import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { makeTempRepo } from "./fixtures.js";
-import { FileExistsError, writeFileOp } from "../src/operations/write-file.js";
+import {
+  FileExistsError,
+  MutationsDisabledError,
+  writeFileOp,
+} from "../src/operations/write-file.js";
 import {
   applyPatchOp,
   PatchMalformedError,
 } from "../src/operations/apply-patch.js";
 import { PathForbiddenError } from "../src/repo-root.js";
+
+// Most tests in this file exercise the destructive ops; enable the gate
+// for the duration of the suite. The two "disabled-by-default" tests
+// below toggle it off explicitly.
+before(() => {
+  process.env["ASP_ENABLE_MUTATIONS"] = "1";
+});
+
+after(() => {
+  delete process.env["ASP_ENABLE_MUTATIONS"];
+});
+
+test("writeFile is disabled by default (no env flag)", async () => {
+  const prev = process.env["ASP_ENABLE_MUTATIONS"];
+  delete process.env["ASP_ENABLE_MUTATIONS"];
+  const repo = makeTempRepo();
+  try {
+    await assert.rejects(
+      () => writeFileOp({ path: "x.txt", content: "y" }),
+      (e) => e instanceof MutationsDisabledError,
+    );
+  } finally {
+    repo.cleanup();
+    if (prev !== undefined) process.env["ASP_ENABLE_MUTATIONS"] = prev;
+  }
+});
+
+test("applyPatch is disabled by default (no env flag), even with dryRun=false", async () => {
+  const prev = process.env["ASP_ENABLE_MUTATIONS"];
+  delete process.env["ASP_ENABLE_MUTATIONS"];
+  const repo = makeTempRepo();
+  try {
+    const minimalPatch = "--- a/x.txt\n+++ b/x.txt\n@@ -1,1 +1,1 @@\n-a\n+b\n";
+    await assert.rejects(
+      () => applyPatchOp({ patch: minimalPatch }),
+      (e) => e instanceof MutationsDisabledError,
+    );
+  } finally {
+    repo.cleanup();
+    if (prev !== undefined) process.env["ASP_ENABLE_MUTATIONS"] = prev;
+  }
+});
 
 test("writeFile creates a new file", async () => {
   const repo = makeTempRepo();

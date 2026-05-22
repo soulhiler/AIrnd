@@ -36,6 +36,7 @@
 | [block-2026-goose](block-2026-goose.md) | Goose — Open-source AI agent с extension framework на MCP (Block → Linux Foundation AAIF) | 2025–2026 | 4 | code-intelligence, oss-agent, mcp-client, extension-framework, rust, linux-foundation, prior-art |
 | [sourcegraph-2023-scip](sourcegraph-2023-scip.md) | SCIP — Code Intelligence Protocol (Sourcegraph, преемник LSIF) | 2023 | 5 | code-intelligence, indexing-format, sourcegraph, protobuf, lsif, open-spec, industry-standard, prior-art, **critical** |
 | [jimenez-2023-swebench](jimenez-2023-swebench.md) | SWE-bench — Evaluation Benchmark для AI-помощников на реальных GitHub issues (Princeton NLP) | 2023 | 5 | evaluation, benchmark, llm-coding, github-issues, swe-bench, princeton-nlp, must-use |
+| [atalay-2026-harness-problem](atalay-2026-harness-problem.md) | The Harness Problem + opencode-hashline — line-tagged tool surface, read/write separation, stale-context detection | 2026 | 5 | harness, tool-surface, hashline, agent-tools, prior-art, **critical** |
 
 ## Не релевантные (помечены, чтобы не возвращаться)
 

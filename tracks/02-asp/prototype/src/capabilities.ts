@@ -1,18 +1,19 @@
-import type { AspCapabilities } from "./types.js";
+import { mutationsEnabled } from "./security.js";
+import type { AspCapabilities, MutationOp } from "./types.js";
 import { ASP_VERSION } from "./types.js";
 
 /**
- * Stage 2a capabilities: baseline + minimal indexed.
+ * Capabilities computed once at module load.
  *
- * Per ADR 0003 staging:
- * - Stage 2a: readFile, listFiles, searchFiles (baseline) + findByTag,
- *   context (indexed) + 2 of 5 fixes (offline-first FTS, fuzzy lookup).
- * - Stage 2b adds: retrieve (with embeddings), rename, cypher, ...
- * - Stage 2c adds: impact analysis, full GitNexus parity.
- *
- * This scaffold advertises only the baseline (readFile, listFiles) for now.
- * Other capabilities will be enabled as operations land.
+ * Mutations are advertised only when `ASP_ENABLE_MUTATIONS=1` is set,
+ * per the hardening pass (default-off destructive ops). When the env
+ * flag is unset, the server still wires the writeFile/applyPatch tools
+ * but they short-circuit with a clear error.
  */
+function computeMutations(): MutationOp[] {
+  return mutationsEnabled() ? ["writeFile", "applyPatch"] : [];
+}
+
 export const STAGE_2A_CAPABILITIES: AspCapabilities = {
   version: ASP_VERSION,
   tier: 2, // baseline + indexed (FTS5 keyword + tag lookup + context)
@@ -30,7 +31,7 @@ export const STAGE_2A_CAPABILITIES: AspCapabilities = {
     default: 4096,
     max: 32768,
   },
-  mutations: ["writeFile", "applyPatch"],
+  mutations: computeMutations(),
 };
 
 /**

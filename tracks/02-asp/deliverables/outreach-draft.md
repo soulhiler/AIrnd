@@ -169,6 +169,50 @@
 >
 > — soulhiler (AIrnd Track 2)
 
+## v0.1.1 reply template (для Alex и всех, кто прислал security feedback)
+
+Когда читатель прислал audit, ответ должен быть:
+
+> Спасибо, прямо в точку. Закрыл все 5:
+>
+> 1. **Mutations off by default.** Теперь `ASP_ENABLE_MUTATIONS=1`
+>    требуется явно. `asp_writeFile` / `asp_applyPatch` возвращают
+>    `MutationsDisabledError` (`-32109`) без него. Capability
+>    `mutations` динамически отражает gate.
+> 2. **Secret denylist в `asp_readFile` / `asp_listFiles`.** Раньше
+>    индексатор фильтровал, read нет — асимметрия закрыта через общий
+>    `src/security.ts` модуль. Покрытие: `.env*`, `*.pem`, `*.key`,
+>    `id_rsa/ed25519/dsa/ecdsa`, `credentials.json`, `service-account*`,
+>    `.netrc`, `.htpasswd`, `.pgpass`, `kubeconfig`, `aws_credentials`,
+>    `*.kdbx`, `*.gpg`, `*.p12`. Sensitive dirs: `.ssh`, `.aws`,
+>    `.gnupg`, `.gpg`, `.kube`.
+> 3. **Realpath containment.** `resolveSafe` теперь canonicalises
+>    через `realpath`, поднимаясь до ближайшего существующего предка
+>    для несуществующих destinations (writeFile создаёт новый файл).
+>    Symlink escape блокируется с
+>    `"Path resolves outside repo root via symlink"`.
+> 4. **`.asp/` auto-gitignore.** Сервер на startup добавляет `.asp/`
+>    в `.gitignore` (если git-репо). Disable: `ASP_SKIP_GITIGNORE=1`.
+> 5. **npm audit:** 4 vulns остаются transitively через
+>    `@xenova/transformers → onnx-proto → protobufjs`. Mitigated:
+>    эмбеддинги off by default, сервер локальный, protobuf consume
+>    только из доверенного HF cache. `--force` ломает ABI с
+>    tree-sitter-wasms; жду `@huggingface/transformers` rebrand
+>    release для миграции. Документировано в `INTEGRATION.md`.
+>
+> Plus добавил твою ссылку на harness-problem в lit-review (мы её
+> пропустили в первом проходе). Atalay'a thesis convergent с нашим
+> новым ADR 0010 — read/write separation. В v0.1.2 планирую adopt
+> hashline pattern для `asp_applyPatch` (FNV-1a `fileRev` parameter).
+>
+> 8 new regression-тестов гарантируют, что ничего из этого не
+> регрессирует: secret denylist, symlink escape, mutations gate.
+> Все 53 теста зелёные.
+>
+> Готово к повторной попытке? `cd asp-ref && git pull && npm install
+> && npm run build && ./scripts/smoke-test.sh /tmp/sanitized-copy`.
+> Если что-то ещё всплывёт — буду рад второму раунду.
+
 ## Tracking
 
 | Recipient | Channel | Sent | Reply | Status |

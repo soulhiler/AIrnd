@@ -225,6 +225,103 @@ Use asp_capabilities to verify the server is connected.
 Then use asp_findByTag with tag "tracks/02-asp/decisions" to list all ADRs.
 ```
 
+## Security
+
+After the v0.1.1 hardening pass:
+
+### Default-off mutations
+
+`asp_writeFile` and `asp_applyPatch` return `MutationsDisabledError`
+(JSON-RPC code `-32109`) unless `ASP_ENABLE_MUTATIONS=1` is set in the
+server's environment. This prevents agents that auto-approve tool
+calls from clobbering your worktree.
+
+To enable:
+
+```json
+{
+  "mcpServers": {
+    "asp-ref": {
+      "command": "node",
+      "args": ["/path/to/dist/server.js"],
+      "env": { "ASP_ENABLE_MUTATIONS": "1" }
+    }
+  }
+}
+```
+
+`asp_applyPatch({dryRun: true})` is also gated — uniformity of policy
+trumps the convenience of dry-running without opting in.
+
+### Secret denylist
+
+These filenames are never indexed, listed, or read, even if the user
+asks for them by full path:
+
+- `.env`, `.env.*`, `*.env`
+- `*.pem`, `*.key`, `id_rsa*`, `id_ed25519*`, `id_dsa*`, `id_ecdsa*`
+- `credentials.json`, `service-account*.json`
+- `.netrc`, `.htpasswd`, `.pgpass`, `kubeconfig`, `aws_credentials`
+- `*.kdbx`, `*.gpg`, `*.p12`
+
+These directories are never descended into: `.ssh`, `.aws`, `.gnupg`,
+`.gpg`, `.kube`.
+
+This list lives in `src/security.ts` and is shared between the
+indexer, the file walker, and the `asp_readFile` / `asp_listFiles`
+operations — no asymmetry.
+
+### Symlink containment
+
+Path resolution uses `realpath`, not just `normalize`. If a path
+inside your repo is a symlink pointing outside the repo root (or to a
+sensitive file), the server rejects with `PathForbiddenError`
+(`-32104`) and message `"Path resolves outside repo root via symlink"`.
+
+### Auto-gitignore
+
+On startup the server appends `.asp/` to your `.gitignore` so the
+local SQLite index doesn't pollute git status. It will not create a
+`.gitignore` outside of a git repo. To disable:
+`ASP_SKIP_GITIGNORE=1`.
+
+### npm audit footprint
+
+`npm audit` reports 4 vulnerabilities (3 high + 1 critical) transitive
+through `@xenova/transformers → onnxruntime-web → onnx-proto →
+protobufjs`. The CVE concern is DoS via malformed protobuf during
+deserialisation.
+
+How this affects asp-ref:
+
+- The server is local and consumes protobuf only from your own Hugging
+  Face cache (a trusted source you control).
+- Embeddings are off by default (`ASP_ENABLE_EMBEDDINGS` unset) — the
+  vulnerable code path isn't loaded at all in baseline operation.
+- Network egress is limited to the first-time model download from
+  Hugging Face Hub and optional Anthropic API calls for LLM rerank.
+
+We have **not** run `npm audit fix --force` because it would upgrade
+`@xenova/transformers` to a major version that's ABI-incompatible
+with our pinned `tree-sitter-wasms`. We're tracking the migration to
+`@huggingface/transformers` (rebrand) which fixes the dep chain.
+
+If you'd rather not have these warnings at all, run with embeddings
+disabled (the default) and disable LLM rerank — the vulnerable
+package never gets loaded.
+
+### What we did NOT add
+
+- **No approval prompt loop.** ASP relies on the agent's own approval
+  UX. Server-side prompt would require MCP elicitation, which most
+  clients don't yet support.
+- **No sandboxed execution.** Server runs as your user with your
+  permissions. If you don't trust the agent, run asp-ref under a
+  restricted user account.
+- **No automated secret scanning of file contents.** We block by
+  filename, not by content. A `notes.txt` containing an API key is
+  still readable. PRs welcome.
+
 ## Troubleshooting
 
 ### "Index empty; starting background scan" hangs

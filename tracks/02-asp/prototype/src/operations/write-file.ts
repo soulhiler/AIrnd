@@ -2,6 +2,7 @@ import { mkdir, stat, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { z } from "zod";
 import { resolveSafe } from "../repo-root.js";
+import { mutationsEnabled } from "../security.js";
 import type { DegradationEntry } from "../types.js";
 
 /**
@@ -35,9 +36,18 @@ export class FileExistsError extends Error {
   public override readonly name = "FileExistsError";
 }
 
+export class MutationsDisabledError extends Error {
+  public override readonly name = "MutationsDisabledError";
+}
+
 export async function writeFileOp(
   rawParams: unknown,
 ): Promise<WriteFileResult> {
+  if (!mutationsEnabled()) {
+    throw new MutationsDisabledError(
+      "asp_writeFile is disabled. Set ASP_ENABLE_MUTATIONS=1 to opt in.",
+    );
+  }
   const params = WriteFileParamsSchema.parse(rawParams);
   const absPath = resolveSafe(params.path);
   const ifExists = params.ifExists ?? "fail";

@@ -71,6 +71,39 @@ cd ~/asp-ref-build/tracks/02-asp/prototype
 Если агент не цепляет наши tools — открой свой запрос с явным указанием:
 *«используй asp_findByTag для ...»*.
 
+## 4.1. Безопасность (важно прочитать!)
+
+После hardening pass v0.1.1:
+
+- **Деструктивные операции (`asp_writeFile`, `asp_applyPatch`)
+  выключены по умолчанию.** Запросы вернут ошибку
+  `MutationsDisabledError`. Если хочешь дать агенту право писать —
+  добавь в `env`:
+
+  ```json
+  "env": { "ASP_ENABLE_MUTATIONS": "1" }
+  ```
+
+  Рекомендация: **не включай**, пока не убедишься, что твой агент не
+  auto-approve'ит destructive calls.
+
+- **Секреты не читаются и не индексируются.** Файлы `.env`, `*.pem`,
+  `*.key`, `id_rsa`, `credentials.json`, и пр. блокируются на server
+  side — даже если агент попросит прочитать.
+
+- **Symlink escape блокируется.** Если в твоём репо есть симлинки,
+  указывающие наружу, сервер откажет в чтении/записи через них.
+
+- **`.asp/` добавляется в `.gitignore` автоматически** при первом
+  запуске (если репо — git-репо). Чтобы отключить:
+  `"env": { "ASP_SKIP_GITIGNORE": "1" }`.
+
+- **`npm audit`** показывает 4 transitive vulnerabilities через
+  `@xenova/transformers → onnxruntime-web → protobufjs`. CVE
+  направление — DoS через malformed protobuf. В нашем сценарии
+  (локальный сервер, доверенный HF cache, эмбеддинги off by default)
+  риск низкий. Подробнее в [INTEGRATION.md](INTEGRATION.md#security).
+
 ## 5. Включить семантический поиск (опционально)
 
 По умолчанию работает только поиск по словам (FTS5). Чтобы добавить
