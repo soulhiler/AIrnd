@@ -2,6 +2,14 @@ import type { IndexStore } from "./store.js";
 import { walkRepo } from "./walker.js";
 import { indexMarkdownFile, isMarkdownPath } from "./markdown-indexer.js";
 import { indexCodeFile, isCodePath } from "./code-indexer.js";
+import {
+  DEFAULT_DIM,
+  DEFAULT_MODEL,
+  embed,
+  embeddingsAvailable,
+  ensureEmbeddingsReady,
+  vectorToBlob,
+} from "./embeddings.js";
 
 export interface IndexStats {
   filesProcessed: number;
@@ -21,6 +29,14 @@ export interface ScanOptions {
    * still pruned.
    */
   incremental?: boolean;
+  /**
+   * If true, compute and store embeddings for every freshly-indexed symbol.
+   * When the embedding model fails to load (offline + no cache), indexing
+   * proceeds without embeddings and the failure surfaces through
+   * `retrieve` degradation. Defaults to false to keep scans fast and
+   * dependency-light; the server flips it on when configured for Stage 2b.
+   */
+  embed?: boolean;
   onProgress?: (processed: number) => void;
 }
 
@@ -37,9 +53,14 @@ export interface ScanOptions {
 export async function fullScan(opts: ScanOptions): Promise<IndexStats> {
   const start = Date.now();
   const incremental = opts.incremental === true;
+  const wantsEmbeddings = opts.embed === true;
   let processed = 0;
   let skipped = 0;
   let symbolsAdded = 0;
+
+  if (wantsEmbeddings) {
+    await ensureEmbeddingsReady();
+  }
 
   // Track which paths we observed on disk so we can prune the rest.
   const seenPaths = new Set<string>();
@@ -81,6 +102,22 @@ export async function fullScan(opts: ScanOptions): Promise<IndexStats> {
     opts.store.upsertMany(syms);
     processed++;
     symbolsAdded += syms.length;
+
+    if (wantsEmbeddings && embeddingsAvailable()) {
+      for (const sym of syms) {
+        const text = sym.snippet ?? "";
+        if (text.length === 0) continue;
+        const vec = await embed(text);
+        if (vec === null) continue;
+        opts.store.upsertEmbedding({
+          symbolId: sym.id,
+          dim: DEFAULT_DIM,
+          model: DEFAULT_MODEL,
+          vector: vectorToBlob(vec),
+        });
+      }
+    }
+
     if (opts.onProgress !== undefined && processed % 25 === 0) {
       opts.onProgress(processed);
     }

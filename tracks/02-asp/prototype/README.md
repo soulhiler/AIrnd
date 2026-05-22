@@ -78,6 +78,10 @@ Workname: `asp-ref`. Финальное имя — выбирается пере
   - `index/` (расширен):
     - `treesitter.ts` — web-tree-sitter bootstrap, lazy language loading.
     - `code-indexer.ts` — извлечение функций/классов/методов/интерфейсов/типов.
+    - `embeddings.ts` — transformers.js + cosine similarity + BLOB encoding.
+  - `operations/`:
+    - `retrieve.ts` — `asp/retrieve` с vector / keyword / hybrid (RRF) (spec 6.3.2).
+- `tests/` — 23 unit/integration теста для индексеров и операций.
   - `index/`
     - `schema.ts` — SQLite DDL (symbols + tags + symbols_fts + triggers).
     - `store.ts` — IndexStore wrapper с prepared statements.
@@ -139,11 +143,26 @@ npm run build
 - ✅ **Incremental re-index** по `mtime_ms` через `asp_refresh({scope: "incremental"})`. На повторных запусках без изменений: 46/48 файлов пропускается, 3× быстрее full scan.
 - ✅ **Stale file pruning** — удалённые с диска файлы удаляются из индекса автоматически в обоих режимах.
 
-## Что **не** работает (Stage 2b и далее)
+## Stage 2b — embeddings + retrieve + tests
 
-- 🚧 `asp_retrieve` — embeddings (Stage 2b, ADR 0007 follow-up).
+- ✅ **`asp_retrieve`** — двухстадийный retrieval (per spec Section 6.3.2). Modes: `vector` / `keyword` / `hybrid`. Continue.dev pattern: `nRetrieve` → optional rerank → `nFinal`.
+- ✅ **Reciprocal Rank Fusion** в hybrid mode — комбинирует BM25 и cosine similarity без калибровки скоров.
+- ✅ **Local embeddings** через `@xenova/transformers` (Apache 2.0). Модель по умолчанию: `Xenova/all-MiniLM-L6-v2` (384-dim). Загружается при первом запуске (опционально, через `ASP_ENABLE_EMBEDDINGS=1`).
+- ✅ **Graceful degradation** — если модель недоступна (нет сети, нет кеша), vector mode **прозрачно** fallback к keyword + degradation entry `embeddings`.
+- ✅ **Embeddings schema** — отдельная таблица в SQLite (`embeddings(symbol_id, dim, model, vector BLOB)`). Schema version bump v1 → v2 с auto-upgrade (additive).
+- ✅ **Filter поддержка** — фильтр по tags / kind / pathPrefix перед Stage 2.
+- ✅ **Тесты** — 23 теста в `tests/`:
+  - `markdown-indexer.test.ts`: file + section extraction, hierarchical tag matching.
+  - `code-indexer.test.ts`: Python functions/classes + TypeScript interfaces/functions.
+  - `incremental.test.ts`: skip unchanged, pick modified, prune deleted files, prune stale sections.
+  - `operations.test.ts`: path traversal, token budget, FTS5 search, findByTag, context.
+  - `retrieve.test.ts`: keyword mode, vector fallback, rerank degradation, filter.
+
+## Что **не** работает (Stage 2c и далее)
+
 - 🚧 `asp_impact` — graph index (Stage 2c).
-- 🚧 `asp_writeFile` / `asp_applyPatch` — mutations (Stage 2b).
+- 🚧 `asp_writeFile` / `asp_applyPatch` — mutations (Stage 2b TODO).
+- 🚧 LLM-based rerank — заглушка с degradation; реальная имплементация в follow-up.
 - 🚧 Async refresh (`wait: false`) + path-scoped refresh.
-- 🚧 Tests.
 - 🚧 Дополнительные tree-sitter языки (Rust, Go, Java, C/C++ доступны в `tree-sitter-wasms`, нужно только добавить rules).
+- 🚧 ANN индекс для embeddings (сейчас linear scan; OK до ~10k символов с embeddings, медленнее на больших репо).

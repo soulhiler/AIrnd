@@ -14,6 +14,7 @@ const RefreshParamsSchema = z.object({
   scope: z.enum(["incremental", "full"]).optional(),
   paths: z.array(z.string()).optional(),
   wait: z.boolean().optional(),
+  embed: z.boolean().optional(),
 });
 
 export type RefreshParams = z.infer<typeof RefreshParamsSchema>;
@@ -32,6 +33,8 @@ export interface RefreshResult {
 export interface RefreshDeps {
   store: IndexStore;
   repoRoot: string;
+  /** Default whether to compute embeddings; overridable per call. */
+  embedByDefault?: boolean;
   onComplete?: () => void;
 }
 
@@ -59,10 +62,12 @@ export function makeRefreshOp(deps: RefreshDeps) {
       });
     }
 
+    const embedRequested = params.embed ?? deps.embedByDefault ?? false;
     const stats = await fullScan({
       root: deps.repoRoot,
       store: deps.store,
       incremental: scope === "incremental",
+      embed: embedRequested,
     });
     if (deps.onComplete !== undefined) deps.onComplete();
 

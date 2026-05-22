@@ -30,6 +30,7 @@ import {
   readFileOp,
 } from "./operations/read-file.js";
 import { makeRefreshOp } from "./operations/refresh.js";
+import { makeRetrieveOp } from "./operations/retrieve.js";
 import { makeSearchFilesOp } from "./operations/search-files.js";
 import { PathForbiddenError, setRepoRoot } from "./repo-root.js";
 import { SERVER_INFO } from "./types.js";
@@ -77,21 +78,31 @@ async function main(): Promise<void> {
     store,
     indexBuilt: () => indexReady,
   });
+  const embedByDefault = process.env["ASP_ENABLE_EMBEDDINGS"] === "1";
   const refreshOp = makeRefreshOp({
     store,
     repoRoot,
+    embedByDefault,
     onComplete: () => {
       indexReady = true;
     },
+  });
+  const retrieveOp = makeRetrieveOp({
+    store,
+    indexBuilt: () => indexReady,
   });
 
   // Background initial scan if index is empty. We don't block startup; the
   // first search query will report partial-index degradation until done.
   if (!indexReady) {
-    console.error("[asp-ref] Index empty; starting background scan...");
+    console.error(
+      `[asp-ref] Index empty; starting background scan ` +
+        `(embeddings=${embedByDefault ? "on" : "off"})...`,
+    );
     void fullScan({
       root: repoRoot,
       store,
+      embed: embedByDefault,
       onProgress: (n) => console.error(`[asp-ref]   ...${n} files processed`),
     }).then((stats) => {
       indexReady = true;
@@ -236,6 +247,31 @@ async function main(): Promise<void> {
           },
         },
         {
+          name: "asp_retrieve",
+          description:
+            "ASP operation `asp/retrieve`. Two-stage retrieval over indexed symbols: vector | keyword | hybrid. Embeddings fall back to keyword search with a `degradation: [\"embeddings\"]` entry if the model is not loaded.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              query: { type: "string", minLength: 1 },
+              mode: { type: "string", enum: ["vector", "keyword", "hybrid"] },
+              nRetrieve: { type: "integer", minimum: 1, maximum: 500 },
+              nFinal: { type: "integer", minimum: 1, maximum: 500 },
+              rerank: { type: "boolean" },
+              filter: {
+                type: "object",
+                properties: {
+                  tags: { type: "array", items: { type: "string" } },
+                  kind: { type: "string" },
+                  pathPrefix: { type: "string" },
+                },
+              },
+              tokenBudget: { type: "integer", minimum: 1 },
+            },
+            required: ["query"],
+          },
+        },
+        {
           name: "asp_refresh",
           description:
             "ASP operation `asp/refresh`. Triggers a full repository re-scan (Stage 2a: incremental + path-scoped + async are degraded to full sync scan).",
@@ -294,6 +330,12 @@ async function main(): Promise<void> {
         }
         case "asp_refresh": {
           const result = await refreshOp(args ?? {});
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          };
+        }
+        case "asp_retrieve": {
+          const result = await retrieveOp(args ?? {});
           return {
             content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
           };

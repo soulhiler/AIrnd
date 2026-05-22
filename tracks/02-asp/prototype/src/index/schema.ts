@@ -10,7 +10,7 @@
  *  - 2b: vector embeddings (separate store, likely LanceDB rather than vss).
  *  - 2c: graph edges (references / referents) for asp/impact.
  */
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 export const SCHEMA_DDL = `
 CREATE TABLE IF NOT EXISTS schema_meta (
@@ -45,6 +45,18 @@ CREATE TABLE IF NOT EXISTS tags (
 );
 
 CREATE INDEX IF NOT EXISTS idx_tags_tag ON tags(tag);
+
+-- Stage 2b: per-symbol vector embeddings. Stored as a raw Float32 blob for
+-- compactness; cosine similarity is computed in TypeScript via linear scan
+-- (acceptable for ≤ ~50k symbols). When repos outgrow that, swap in
+-- sqlite-vec or LanceDB.
+CREATE TABLE IF NOT EXISTS embeddings (
+  symbol_id TEXT PRIMARY KEY,
+  dim INTEGER NOT NULL,
+  model TEXT NOT NULL,
+  vector BLOB NOT NULL,
+  FOREIGN KEY (symbol_id) REFERENCES symbols(id) ON DELETE CASCADE
+);
 
 -- FTS5 over symbol snippets and IDs. We use external-content storage so
 -- that updates to the symbols table cascade via triggers below.

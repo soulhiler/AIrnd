@@ -20,7 +20,10 @@ export const STAGE_2A_CAPABILITIES: AspCapabilities = {
   // Now sourced from path + markdown headings AND tree-sitter parsers
   // (which emit `kind/...` tags for code symbols).
   tagSources: ["path", "markdown-headings"],
-  retrievalModes: ["keyword"], // FTS5 only; vector / graph / hybrid pending
+  // Stage 2b: vector + hybrid available; graph stays for Stage 2c. Vector
+  // works whenever the embedding model is loadable; otherwise asp/retrieve
+  // returns `degradation: ["embeddings"]` and falls back to keyword.
+  retrievalModes: ["keyword", "vector", "hybrid"],
   impactAnalysis: false, // Stage 2c
   streaming: false, // v0.2
   tokenBudget: {

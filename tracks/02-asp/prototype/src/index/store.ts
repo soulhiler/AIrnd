@@ -69,6 +69,9 @@ export class IndexStore {
     getFileMtime: Database.Statement;
     deleteByPath: Database.Statement;
     distinctIndexedPaths: Database.Statement;
+    upsertEmbedding: Database.Statement;
+    listEmbeddings: Database.Statement;
+    countEmbeddings: Database.Statement;
   };
 
   constructor(dbPath: string) {
@@ -166,6 +169,20 @@ export class IndexStore {
       // For stale-file detection: enumerate every path currently in the index.
       distinctIndexedPaths: this.db.prepare(
         `SELECT DISTINCT path FROM symbols`,
+      ),
+      upsertEmbedding: this.db.prepare(`
+        INSERT INTO embeddings (symbol_id, dim, model, vector)
+        VALUES (@symbolId, @dim, @model, @vector)
+        ON CONFLICT(symbol_id) DO UPDATE SET
+          dim=excluded.dim,
+          model=excluded.model,
+          vector=excluded.vector
+      `),
+      listEmbeddings: this.db.prepare(`
+        SELECT symbol_id, vector FROM embeddings WHERE model = ?
+      `),
+      countEmbeddings: this.db.prepare(
+        `SELECT COUNT(*) AS c FROM embeddings WHERE model = ?`,
       ),
     };
   }
@@ -320,6 +337,40 @@ export class IndexStore {
     return new Set(rows.map((r) => r.path));
   }
 
+  /**
+   * Store a vector embedding for a symbol. `vector` is a raw Float32 blob.
+   */
+  upsertEmbedding(opts: {
+    symbolId: string;
+    dim: number;
+    model: string;
+    vector: Buffer;
+  }): void {
+    this.stmts.upsertEmbedding.run(opts);
+  }
+
+  /**
+   * Stream all embeddings for a given model. Caller decodes the BLOB to a
+   * Float32Array. Used by linear-scan retrieve.
+   */
+  *iterEmbeddings(model: string): Generator<{
+    symbolId: string;
+    vector: Buffer;
+  }> {
+    const rows = this.stmts.listEmbeddings.all(model) as Array<{
+      symbol_id: string;
+      vector: Buffer;
+    }>;
+    for (const row of rows) {
+      yield { symbolId: row.symbol_id, vector: row.vector };
+    }
+  }
+
+  countEmbeddings(model: string): number {
+    const row = this.stmts.countEmbeddings.get(model) as { c: number };
+    return row.c;
+  }
+
   private hydrateSymbol(row: RawSymbolRow): SymbolRow {
     const tags = (this.stmts.tagsForSymbol.all(row.id) as Array<{
       tag: string;
@@ -350,12 +401,22 @@ export class IndexStore {
       return;
     }
     const existing = Number(row.value);
-    if (existing !== SCHEMA_VERSION) {
-      throw new Error(
-        `Index schema version mismatch: db=${existing}, code=${SCHEMA_VERSION}. ` +
-          `Delete .asp/index.db and re-index.`,
-      );
+    if (existing === SCHEMA_VERSION) return;
+
+    // Additive upgrade paths. Newer versions add new tables/columns; the
+    // SCHEMA_DDL above runs every constructor with `IF NOT EXISTS`, so the
+    // physical change is already applied — we only need to bump the meta.
+    if (existing === 1 && SCHEMA_VERSION === 2) {
+      this.db
+        .prepare(`UPDATE schema_meta SET value = ? WHERE key = 'schema_version'`)
+        .run(String(SCHEMA_VERSION));
+      return;
     }
+
+    throw new Error(
+      `Index schema version mismatch: db=${existing}, code=${SCHEMA_VERSION}. ` +
+        `Delete .asp/index.db and re-index.`,
+    );
   }
 }
 
