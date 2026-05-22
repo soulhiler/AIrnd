@@ -143,6 +143,16 @@ npm run build
 - ✅ **Incremental re-index** по `mtime_ms` через `asp_refresh({scope: "incremental"})`. На повторных запусках без изменений: 46/48 файлов пропускается, 3× быстрее full scan.
 - ✅ **Stale file pruning** — удалённые с диска файлы удаляются из индекса автоматически в обоих режимах.
 
+## Stage 2c — impact + mutations
+
+- ✅ **`asp_impact`** — best-effort blast radius через симвовольный edge-граф (`calls` edges). BFS с `direction: upstream | downstream | both`, `maxDepth`, riskLevel heuristic (low/medium/high). Honest `degradation: ["edge-resolution"]` — name-based resolution over-approximates.
+- ✅ **`asp_writeFile`** — destructive write с path traversal protection, `ifExists: overwrite|fail|skip`, `createDirs`.
+- ✅ **`asp_applyPatch`** — unified-diff applier с hunk-level conflict detection, `dryRun` validation, ifExists semantics. Не fork-safe vs concurrent edits — caller's responsibility.
+- ✅ **`edges` таблица** (schema v3) — symbol-to-symbol relationships с `src/dst/kind` индексами в обе стороны. Резолвится после индекса по anchor-name match.
+- ✅ **Capabilities бамп**: `impactAnalysis: true`, `mutations: ["writeFile", "applyPatch"]`.
+- ✅ **Tests:** 14 новых тестов (impact + mutations). Все 37 проходят.
+- 🚧 **LLM rerank** — design зафиксирован в [ADR 0009](../decisions/0009-llm-rerank-design-and-integration-path.md). Реализация отложена до outreach feedback (sampling vs direct LLM choice).
+
 ## Stage 2b — embeddings + retrieve + tests
 
 - ✅ **`asp_retrieve`** — двухстадийный retrieval (per spec Section 6.3.2). Modes: `vector` / `keyword` / `hybrid`. Continue.dev pattern: `nRetrieve` → optional rerank → `nFinal`.
@@ -158,11 +168,10 @@ npm run build
   - `operations.test.ts`: path traversal, token budget, FTS5 search, findByTag, context.
   - `retrieve.test.ts`: keyword mode, vector fallback, rerank degradation, filter.
 
-## Что **не** работает (Stage 2c и далее)
+## Что **не** работает (Stage 2c+ и follow-ups)
 
-- 🚧 `asp_impact` — graph index (Stage 2c).
-- 🚧 `asp_writeFile` / `asp_applyPatch` — mutations (Stage 2b TODO).
-- 🚧 LLM-based rerank — заглушка с degradation; реальная имплементация в follow-up.
+- 🚧 LLM-based rerank — design в [ADR 0009](../decisions/0009-llm-rerank-design-and-integration-path.md), реализация отложена.
 - 🚧 Async refresh (`wait: false`) + path-scoped refresh.
-- 🚧 Дополнительные tree-sitter языки (Rust, Go, Java, C/C++ доступны в `tree-sitter-wasms`, нужно только добавить rules).
-- 🚧 ANN индекс для embeddings (сейчас linear scan; OK до ~10k символов с embeddings, медленнее на больших репо).
+- 🚧 Дополнительные tree-sitter языки (Rust, Go, Java, C/C++ доступны в `tree-sitter-wasms`).
+- 🚧 ANN индекс для embeddings (сейчас linear scan; OK до ~10k символов с embeddings).
+- 🚧 Precise edge resolution — сейчас anchor-based (over-approximates). LSP-style точная resolution — отдельный шаг.

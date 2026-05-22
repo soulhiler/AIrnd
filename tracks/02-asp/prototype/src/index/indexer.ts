@@ -1,7 +1,11 @@
 import type { IndexStore } from "./store.js";
 import { walkRepo } from "./walker.js";
 import { indexMarkdownFile, isMarkdownPath } from "./markdown-indexer.js";
-import { indexCodeFile, isCodePath } from "./code-indexer.js";
+import {
+  indexCodeFile,
+  isCodePath,
+  type PendingEdge,
+} from "./code-indexer.js";
 import {
   DEFAULT_DIM,
   DEFAULT_MODEL,
@@ -16,6 +20,7 @@ export interface IndexStats {
   filesSkipped: number;
   filesRemoved: number;
   symbolsIndexed: number;
+  edgesResolved: number;
   durationMs: number;
 }
 
@@ -64,6 +69,7 @@ export async function fullScan(opts: ScanOptions): Promise<IndexStats> {
 
   // Track which paths we observed on disk so we can prune the rest.
   const seenPaths = new Set<string>();
+  const pendingEdges: PendingEdge[] = [];
 
   for await (const entry of walkRepo({
     root: opts.root,
@@ -93,11 +99,15 @@ export async function fullScan(opts: ScanOptions): Promise<IndexStats> {
       );
     } else {
       // isCodePath was true above
-      syms = await indexCodeFile(
+      const codeResult = await indexCodeFile(
         entry.absPath,
         entry.relPath,
         entry.mtimeMs,
       );
+      syms = codeResult.symbols;
+      for (const edge of codeResult.edges) {
+        pendingEdges.push(edge);
+      }
     }
     opts.store.upsertMany(syms);
     processed++;
@@ -132,11 +142,37 @@ export async function fullScan(opts: ScanOptions): Promise<IndexStats> {
     }
   }
 
+  // Resolve pending edges. Group by src symbol so we can reset its outgoing
+  // edges once before inserting, which keeps incremental scans correct.
+  const edgesBySrc = new Map<string, PendingEdge[]>();
+  for (const edge of pendingEdges) {
+    const bucket = edgesBySrc.get(edge.srcSymbolId);
+    if (bucket === undefined) {
+      edgesBySrc.set(edge.srcSymbolId, [edge]);
+    } else {
+      bucket.push(edge);
+    }
+  }
+
+  let edgesResolved = 0;
+  for (const [srcId, batch] of edgesBySrc) {
+    opts.store.resetEdgesFor(srcId);
+    for (const edge of batch) {
+      const candidates = opts.store.findSymbolsByName(edge.dstName);
+      for (const dstId of candidates) {
+        if (dstId === srcId) continue; // skip self-loops
+        opts.store.upsertEdge(srcId, dstId, edge.kind);
+        edgesResolved++;
+      }
+    }
+  }
+
   return {
     filesProcessed: processed,
     filesSkipped: skipped,
     filesRemoved: removed,
     symbolsIndexed: symbolsAdded,
+    edgesResolved,
     durationMs: Date.now() - start,
   };
 }

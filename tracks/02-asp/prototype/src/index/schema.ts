@@ -10,7 +10,7 @@
  *  - 2b: vector embeddings (separate store, likely LanceDB rather than vss).
  *  - 2c: graph edges (references / referents) for asp/impact.
  */
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 export const SCHEMA_DDL = `
 CREATE TABLE IF NOT EXISTS schema_meta (
@@ -57,6 +57,24 @@ CREATE TABLE IF NOT EXISTS embeddings (
   vector BLOB NOT NULL,
   FOREIGN KEY (symbol_id) REFERENCES symbols(id) ON DELETE CASCADE
 );
+
+-- Stage 2c: symbol relationships (call/extends/uses/imports). Edges are
+-- best-effort: code-indexer collects (src_id, dst_name, kind) tuples while
+-- walking the AST, then the indexer resolves dst_name to symbol IDs by
+-- anchor match (over-approximating when multiple symbols share a name).
+-- Precise name resolution belongs in an LSP-style server; this layer trades
+-- precision for offline simplicity.
+CREATE TABLE IF NOT EXISTS edges (
+  src_symbol_id TEXT NOT NULL,
+  dst_symbol_id TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  PRIMARY KEY (src_symbol_id, dst_symbol_id, kind),
+  FOREIGN KEY (src_symbol_id) REFERENCES symbols(id) ON DELETE CASCADE,
+  FOREIGN KEY (dst_symbol_id) REFERENCES symbols(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_edges_src ON edges(src_symbol_id);
+CREATE INDEX IF NOT EXISTS idx_edges_dst ON edges(dst_symbol_id);
 
 -- FTS5 over symbol snippets and IDs. We use external-content storage so
 -- that updates to the symbols table cascade via triggers below.

@@ -21,8 +21,10 @@ import { z } from "zod";
 import { STAGE_2A_CAPABILITIES } from "./capabilities.js";
 import { fullScan } from "./index/indexer.js";
 import { IndexStore, defaultIndexPath } from "./index/store.js";
+import { applyPatchOp, PatchConflictError, PatchMalformedError } from "./operations/apply-patch.js";
 import { makeContextOp } from "./operations/context.js";
 import { makeFindByTagOp } from "./operations/find-by-tag.js";
+import { makeImpactOp } from "./operations/impact.js";
 import { listFilesOp } from "./operations/list-files.js";
 import {
   BinaryFileError,
@@ -32,6 +34,7 @@ import {
 import { makeRefreshOp } from "./operations/refresh.js";
 import { makeRetrieveOp } from "./operations/retrieve.js";
 import { makeSearchFilesOp } from "./operations/search-files.js";
+import { FileExistsError, writeFileOp } from "./operations/write-file.js";
 import { PathForbiddenError, setRepoRoot } from "./repo-root.js";
 import { SERVER_INFO } from "./types.js";
 
@@ -88,6 +91,10 @@ async function main(): Promise<void> {
     },
   });
   const retrieveOp = makeRetrieveOp({
+    store,
+    indexBuilt: () => indexReady,
+  });
+  const impactOp = makeImpactOp({
     store,
     indexBuilt: () => indexReady,
   });
@@ -285,6 +292,52 @@ async function main(): Promise<void> {
           },
         },
         {
+          name: "asp_impact",
+          description:
+            "ASP operation `asp/impact`. Best-effort blast-radius traversal over the symbol edge graph. Returns affected symbols with depth and edge kind.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              symbol: { type: "string", minLength: 1 },
+              direction: {
+                type: "string",
+                enum: ["upstream", "downstream", "both"],
+              },
+              maxDepth: { type: "integer", minimum: 1, maximum: 10 },
+              tokenBudget: { type: "integer", minimum: 1 },
+            },
+            required: ["symbol"],
+          },
+        },
+        {
+          name: "asp_writeFile",
+          description:
+            "ASP operation `asp/writeFile` (destructive). Writes UTF-8 content to a file relative to repo root, with path traversal protection. Clients should obtain user approval before invoking.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              path: { type: "string", minLength: 1 },
+              content: { type: "string" },
+              createDirs: { type: "boolean" },
+              ifExists: { type: "string", enum: ["overwrite", "fail", "skip"] },
+            },
+            required: ["path", "content"],
+          },
+        },
+        {
+          name: "asp_applyPatch",
+          description:
+            "ASP operation `asp/applyPatch` (destructive). Applies a unified-diff patch to one or more files. Set `dryRun: true` to validate without writing.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              patch: { type: "string", minLength: 1 },
+              dryRun: { type: "boolean" },
+            },
+            required: ["patch"],
+          },
+        },
+        {
           name: "asp_capabilities",
           description:
             "Return advertised ASP capabilities (spec Section 5). Stable across this server lifetime.",
@@ -340,6 +393,24 @@ async function main(): Promise<void> {
             content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
           };
         }
+        case "asp_impact": {
+          const result = await impactOp(args ?? {});
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          };
+        }
+        case "asp_writeFile": {
+          const result = await writeFileOp(args ?? {});
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          };
+        }
+        case "asp_applyPatch": {
+          const result = await applyPatchOp(args ?? {});
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          };
+        }
         case "asp_capabilities": {
           return {
             content: [
@@ -390,6 +461,16 @@ function handleError(e: unknown): {
     message = e.message;
   } else if (e instanceof BinaryFileError) {
     code = ERR_PATH_NOT_FOUND;
+    message = e.message;
+  } else if (e instanceof FileExistsError) {
+    code = -32106; // asp_file_exists
+    message = e.message;
+  } else if (e instanceof PatchConflictError) {
+    code = -32107; // asp_patch_conflict
+    message = e.message;
+    data = { conflicts: e.conflicts };
+  } else if (e instanceof PatchMalformedError) {
+    code = -32108; // asp_patch_malformed
     message = e.message;
   } else if (e instanceof z.ZodError) {
     code = -32602; // JSON-RPC invalid params

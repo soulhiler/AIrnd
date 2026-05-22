@@ -108,27 +108,46 @@ export function isCodePath(relPath: string): boolean {
   return langForPath(relPath) !== null && langForPath(relPath)! in RULES;
 }
 
+/**
+ * An unresolved edge collected during AST walk. `dstName` is a bare
+ * identifier (e.g. `login_user`); the indexer resolves it to a symbol ID by
+ * anchor match after all files are indexed.
+ */
+export interface PendingEdge {
+  srcSymbolId: string;
+  dstName: string;
+  kind: "calls" | "uses" | "extends" | "implements" | "imports";
+}
+
+export interface CodeIndexResult {
+  symbols: IndexedSymbol[];
+  edges: PendingEdge[];
+}
+
 export async function indexCodeFile(
   absPath: string,
   relPath: string,
   mtimeMs: number,
-): Promise<IndexedSymbol[]> {
+): Promise<CodeIndexResult> {
   const langId = langForPath(relPath);
-  if (langId === null || !(langId in RULES)) return [];
+  if (langId === null || !(langId in RULES)) {
+    return { symbols: [], edges: [] };
+  }
 
   const parser = await getParser(langId);
-  if (parser === null) return [];
+  if (parser === null) return { symbols: [], edges: [] };
 
   const text = await readFile(absPath, "utf-8");
   const tree = parser.parse(text);
-  if (tree === null) return [];
+  if (tree === null) return { symbols: [], edges: [] };
 
-  const out: IndexedSymbol[] = [];
+  const symbols: IndexedSymbol[] = [];
+  const edges: PendingEdge[] = [];
   const fileTags = pathTags(relPath).concat([`lang/${langId}`]);
 
   // File-level symbol (matches markdown indexer convention).
   const fileId = `file:${relPath}`;
-  out.push({
+  symbols.push({
     id: fileId,
     kind: "file",
     scheme: "file",
@@ -150,9 +169,10 @@ export async function indexCodeFile(
     fileId,
     fileTags,
     text,
-    out,
+    symbols,
+    edges,
   );
-  return out;
+  return { symbols, edges };
 }
 
 interface AstNode {
@@ -167,6 +187,12 @@ interface AstNode {
   text: string;
 }
 
+const CALL_NODE_TYPES = new Set([
+  "call",
+  "call_expression",
+  "new_expression",
+]);
+
 function walkAndExtract(
   node: AstNode,
   langId: string,
@@ -175,6 +201,7 @@ function walkAndExtract(
   fileTags: string[],
   source: string,
   out: IndexedSymbol[],
+  edges: PendingEdge[],
   parentId: string = fileId,
 ): void {
   const rules = RULES[langId];
@@ -215,6 +242,18 @@ function walkAndExtract(
       });
       currentParent = symbolId;
     }
+  } else if (CALL_NODE_TYPES.has(node.type)) {
+    // Collect a `calls` edge from the enclosing symbol to whatever is being
+    // called. Best-effort: the callee identifier is whatever sits at the
+    // top of the call expression's left-hand side.
+    const calleeName = extractCalleeName(node);
+    if (calleeName !== null) {
+      edges.push({
+        srcSymbolId: currentParent,
+        dstName: calleeName,
+        kind: "calls",
+      });
+    }
   }
 
   for (let i = 0; i < node.childCount; i++) {
@@ -228,9 +267,50 @@ function walkAndExtract(
       fileTags,
       source,
       out,
+      edges,
       currentParent,
     );
   }
+}
+
+/**
+ * Extract the called identifier from a call node. Handles `foo()`,
+ * `obj.method()`, and `obj.deep.path()` by walking down `.member`.
+ */
+function extractCalleeName(call: AstNode): string | null {
+  // Most grammars expose the function position as the first named child.
+  // We walk down `member_expression` / `attribute` to pick the last segment.
+  const functionPart = call.childForFieldName("function") ?? call.child(0);
+  if (functionPart === null) return null;
+  return rightmostIdentifier(functionPart);
+}
+
+function rightmostIdentifier(node: AstNode): string | null {
+  // attribute / member_expression: take the right child (property).
+  if (node.type === "attribute" || node.type === "member_expression") {
+    const right =
+      node.childForFieldName("attribute") ??
+      node.childForFieldName("property") ??
+      node.child(node.childCount - 1);
+    if (right !== null && right.type !== node.type) {
+      return rightmostIdentifier(right);
+    }
+  }
+  if (
+    node.type === "identifier" ||
+    node.type === "property_identifier" ||
+    node.type === "type_identifier"
+  ) {
+    return node.text;
+  }
+  // Fallback: scan for any identifier-typed child.
+  for (let i = node.childCount - 1; i >= 0; i--) {
+    const c = node.child(i);
+    if (c === null) continue;
+    const n = rightmostIdentifier(c);
+    if (n !== null) return n;
+  }
+  return null;
 }
 
 /**

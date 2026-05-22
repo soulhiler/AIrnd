@@ -72,6 +72,11 @@ export class IndexStore {
     upsertEmbedding: Database.Statement;
     listEmbeddings: Database.Statement;
     countEmbeddings: Database.Statement;
+    upsertEdge: Database.Statement;
+    deleteEdgesFor: Database.Statement;
+    findByAnchorSuffix: Database.Statement;
+    edgesOutgoing: Database.Statement;
+    edgesIncoming: Database.Statement;
   };
 
   constructor(dbPath: string) {
@@ -183,6 +188,25 @@ export class IndexStore {
       `),
       countEmbeddings: this.db.prepare(
         `SELECT COUNT(*) AS c FROM embeddings WHERE model = ?`,
+      ),
+      upsertEdge: this.db.prepare(`
+        INSERT OR IGNORE INTO edges (src_symbol_id, dst_symbol_id, kind)
+        VALUES (?, ?, ?)
+      `),
+      deleteEdgesFor: this.db.prepare(
+        `DELETE FROM edges WHERE src_symbol_id = ?`,
+      ),
+      // Anchor suffix match: finds symbols whose dotted anchor ends with
+      // `.<name>` OR equals `<name>` exactly. Used by the impact resolver.
+      findByAnchorSuffix: this.db.prepare(`
+        SELECT id FROM symbols
+        WHERE anchor = @name OR anchor LIKE @suffix
+      `),
+      edgesOutgoing: this.db.prepare(
+        `SELECT dst_symbol_id, kind FROM edges WHERE src_symbol_id = ?`,
+      ),
+      edgesIncoming: this.db.prepare(
+        `SELECT src_symbol_id, kind FROM edges WHERE dst_symbol_id = ?`,
       ),
     };
   }
@@ -371,6 +395,47 @@ export class IndexStore {
     return row.c;
   }
 
+  /**
+   * Replace all outgoing edges from a symbol. Call this before re-indexing a
+   * file so that stale call-edges from previous versions don't accumulate.
+   */
+  resetEdgesFor(srcSymbolId: string): void {
+    this.stmts.deleteEdgesFor.run(srcSymbolId);
+  }
+
+  upsertEdge(src: string, dst: string, kind: string): void {
+    this.stmts.upsertEdge.run(src, dst, kind);
+  }
+
+  /**
+   * Resolve a bare name like `foo` to candidate symbol IDs by matching the
+   * `anchor` column on either an exact name or a dotted-suffix `.foo`.
+   * Returns 0..N matches; impact analysis tolerates over-approximation.
+   */
+  findSymbolsByName(name: string): string[] {
+    const rows = this.stmts.findByAnchorSuffix.all({
+      name,
+      suffix: `%.${name}`,
+    }) as Array<{ id: string }>;
+    return rows.map((r) => r.id);
+  }
+
+  edgesFromSymbol(symbolId: string): Array<{ dst: string; kind: string }> {
+    const rows = this.stmts.edgesOutgoing.all(symbolId) as Array<{
+      dst_symbol_id: string;
+      kind: string;
+    }>;
+    return rows.map((r) => ({ dst: r.dst_symbol_id, kind: r.kind }));
+  }
+
+  edgesToSymbol(symbolId: string): Array<{ src: string; kind: string }> {
+    const rows = this.stmts.edgesIncoming.all(symbolId) as Array<{
+      src_symbol_id: string;
+      kind: string;
+    }>;
+    return rows.map((r) => ({ src: r.src_symbol_id, kind: r.kind }));
+  }
+
   private hydrateSymbol(row: RawSymbolRow): SymbolRow {
     const tags = (this.stmts.tagsForSymbol.all(row.id) as Array<{
       tag: string;
@@ -403,10 +468,10 @@ export class IndexStore {
     const existing = Number(row.value);
     if (existing === SCHEMA_VERSION) return;
 
-    // Additive upgrade paths. Newer versions add new tables/columns; the
-    // SCHEMA_DDL above runs every constructor with `IF NOT EXISTS`, so the
-    // physical change is already applied — we only need to bump the meta.
-    if (existing === 1 && SCHEMA_VERSION === 2) {
+    // Additive upgrade paths. Every schema bump in 0.x has been
+    // backwards-compatible (new tables/columns only), so we silently bump the
+    // meta. The schema DDL is already idempotent via `IF NOT EXISTS`.
+    if (existing < SCHEMA_VERSION) {
       this.db
         .prepare(`UPDATE schema_meta SET value = ? WHERE key = 'schema_version'`)
         .run(String(SCHEMA_VERSION));

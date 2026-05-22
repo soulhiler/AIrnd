@@ -24,13 +24,13 @@ export const STAGE_2A_CAPABILITIES: AspCapabilities = {
   // works whenever the embedding model is loadable; otherwise asp/retrieve
   // returns `degradation: ["embeddings"]` and falls back to keyword.
   retrievalModes: ["keyword", "vector", "hybrid"],
-  impactAnalysis: false, // Stage 2c
+  impactAnalysis: true, // Stage 2c (best-effort, anchor-based resolution)
   streaming: false, // v0.2
   tokenBudget: {
     default: 4096,
     max: 32768,
   },
-  mutations: [], // read-only; writeFile/applyPatch in Stage 2b
+  mutations: ["writeFile", "applyPatch"],
 };
 
 /**
