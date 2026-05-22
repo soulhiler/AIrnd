@@ -32,6 +32,23 @@ export interface SearchHit {
 }
 
 /**
+ * Row returned by getSymbolById / findByTag — full symbol record with tags.
+ */
+export interface SymbolRow {
+  id: string;
+  kind: SymbolKind;
+  scheme: string;
+  path: string;
+  anchor: string | null;
+  line: number | null;
+  endLine: number | null;
+  parentId: string | null;
+  tokenSize: number | null;
+  snippet: string | null;
+  tags: string[];
+}
+
+/**
  * Wrapper over better-sqlite3 with prepared statements for the indexer.
  * Single-writer assumption (Stage 2a only — see ADR 0007 § cons).
  */
@@ -45,6 +62,10 @@ export class IndexStore {
     countSymbols: Database.Statement;
     searchFts: Database.Statement;
     tagsForSymbol: Database.Statement;
+    getSymbol: Database.Statement;
+    findByTagExact: Database.Statement;
+    findByTagHierarchical: Database.Statement;
+    childrenOfSymbol: Database.Statement;
   };
 
   constructor(dbPath: string) {
@@ -95,6 +116,40 @@ export class IndexStore {
       tagsForSymbol: this.db.prepare(
         `SELECT tag FROM tags WHERE symbol_id = ? ORDER BY tag`,
       ),
+      getSymbol: this.db.prepare(`
+        SELECT id, kind, scheme, path, anchor, line, end_line, parent_id,
+               token_size, snippet
+        FROM symbols
+        WHERE id = ?
+      `),
+      // Exact tag match. Returns symbols having the tag literally.
+      findByTagExact: this.db.prepare(`
+        SELECT DISTINCT s.id, s.kind, s.scheme, s.path, s.anchor, s.line,
+               s.end_line, s.parent_id, s.token_size, s.snippet
+        FROM symbols s
+        JOIN tags t ON t.symbol_id = s.id
+        WHERE t.tag = ?
+        ORDER BY s.path, s.line
+        LIMIT ?
+      `),
+      // Hierarchical prefix match. Returns symbols where any tag equals
+      // OR starts with `tag + "/"`.
+      findByTagHierarchical: this.db.prepare(`
+        SELECT DISTINCT s.id, s.kind, s.scheme, s.path, s.anchor, s.line,
+               s.end_line, s.parent_id, s.token_size, s.snippet
+        FROM symbols s
+        JOIN tags t ON t.symbol_id = s.id
+        WHERE t.tag = @tag OR t.tag LIKE @prefix
+        ORDER BY s.path, s.line
+        LIMIT @limit
+      `),
+      childrenOfSymbol: this.db.prepare(`
+        SELECT id, kind, scheme, path, anchor, line, end_line, parent_id,
+               token_size, snippet
+        FROM symbols
+        WHERE parent_id = ?
+        ORDER BY line
+      `),
     };
   }
 
@@ -178,6 +233,64 @@ export class IndexStore {
     }));
   }
 
+  getSymbolById(id: string): SymbolRow | null {
+    const row = this.stmts.getSymbol.get(id) as RawSymbolRow | undefined;
+    if (row === undefined) return null;
+    return this.hydrateSymbol(row);
+  }
+
+  /**
+   * Look up symbols by tag.
+   *
+   * - `hierarchical: true` → matches `tag` exactly OR any tag starting with
+   *   `tag + "/"`. So `tracks` finds `tracks/02-asp`, `tracks/02-asp/lit-review`.
+   * - `hierarchical: false` → exact match only.
+   */
+  findByTag(opts: {
+    tag: string;
+    hierarchical: boolean;
+    kind?: string;
+    limit: number;
+  }): SymbolRow[] {
+    const rows =
+      opts.hierarchical
+        ? (this.stmts.findByTagHierarchical.all({
+            tag: opts.tag,
+            prefix: opts.tag + "/%",
+            limit: opts.limit,
+          }) as RawSymbolRow[])
+        : (this.stmts.findByTagExact.all(opts.tag, opts.limit) as RawSymbolRow[]);
+    const filtered =
+      opts.kind === undefined
+        ? rows
+        : rows.filter((r) => r.kind === opts.kind);
+    return filtered.map((r) => this.hydrateSymbol(r));
+  }
+
+  childrenOf(parentId: string): SymbolRow[] {
+    const rows = this.stmts.childrenOfSymbol.all(parentId) as RawSymbolRow[];
+    return rows.map((r) => this.hydrateSymbol(r));
+  }
+
+  private hydrateSymbol(row: RawSymbolRow): SymbolRow {
+    const tags = (this.stmts.tagsForSymbol.all(row.id) as Array<{
+      tag: string;
+    }>).map((t) => t.tag);
+    return {
+      id: row.id,
+      kind: row.kind,
+      scheme: row.scheme,
+      path: row.path,
+      anchor: row.anchor,
+      line: row.line,
+      endLine: row.end_line,
+      parentId: row.parent_id,
+      tokenSize: row.token_size,
+      snippet: row.snippet,
+      tags,
+    };
+  }
+
   private ensureSchemaVersion(): void {
     const row = this.db
       .prepare(`SELECT value FROM schema_meta WHERE key = 'schema_version'`)
@@ -196,6 +309,19 @@ export class IndexStore {
       );
     }
   }
+}
+
+interface RawSymbolRow {
+  id: string;
+  kind: SymbolKind;
+  scheme: string;
+  path: string;
+  anchor: string | null;
+  line: number | null;
+  end_line: number | null;
+  parent_id: string | null;
+  token_size: number | null;
+  snippet: string | null;
 }
 
 export const defaultIndexPath = (repoRoot: string): string =>

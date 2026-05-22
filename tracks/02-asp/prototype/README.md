@@ -72,6 +72,9 @@ Workname: `asp-ref`. Финальное имя — выбирается пере
     - `read-file.ts` — `asp/readFile` (spec 6.2.1).
     - `list-files.ts` — `asp/listFiles` (spec 6.2.2).
     - `search-files.ts` — `asp/searchFiles` через FTS5 (spec 6.2.3).
+    - `find-by-tag.ts` — `asp/findByTag` через таблицу `tags` (spec 6.3.1).
+    - `context.ts` — `asp/context` с parent/children (spec 6.3.3).
+    - `refresh.ts` — `asp/refresh` синхронный full scan (spec 6.4.3).
   - `index/`
     - `schema.ts` — SQLite DDL (symbols + tags + symbols_fts + triggers).
     - `store.ts` — IndexStore wrapper с prepared statements.
@@ -106,26 +109,30 @@ npm run build
 ) | node dist/server.js /home/user/AIrnd
 ```
 
-## Что работает (Stage 2a — part 2)
+## Что работает (Stage 2a — part 3)
 
 - ✅ MCP server bootstrap (stdio transport).
-- ✅ `tools/list` advertising 4 tools.
+- ✅ `tools/list` advertising **7 tools**.
 - ✅ `asp_capabilities` — tier 2, tagSchema hierarchical, retrievalModes [keyword].
 - ✅ `asp_readFile` с path traversal protection, line range, token budget enforcement.
 - ✅ `asp_listFiles` с glob filters, gitignore respect, recursive option.
-- ✅ **`asp_searchFiles` через SQLite FTS5** — наш fix #1 (offline-first FTS).
-- ✅ **Persistent index в `.asp/index.db`** — schema_version, symbols + tags + symbols_fts (FTS5 external-content).
-- ✅ **Markdown indexer** — file symbols + section symbols + hierarchical tags (path + heading-level + parent-section) — порт нашего toy из `ideas/001-toy/`.
-- ✅ **Background initial scan** при пустом индексе. На AIrnd-репо: 48 файлов / 988 символов / ~330мс.
-- ✅ **`partial-index` degradation** возвращается, пока background scan не завершён.
+- ✅ `asp_searchFiles` через SQLite FTS5 (наш fix #1 — offline-first FTS).
+- ✅ **`asp_findByTag`** — hierarchical (prefix) или exact match через таблицу `tags`. Поддерживает фильтр по `kind`.
+- ✅ **`asp_context`** — символ + parent + children + body. Properly signals `graph-index` degradation для references/referents (Stage 2c).
+- ✅ **`asp_refresh`** — sync full scan. Advertises degradation для unsupported модов (incremental / paths-scoped / async).
+- ✅ Persistent index в `.asp/index.db` — schema_version, symbols + tags + symbols_fts (FTS5 external-content).
+- ✅ Markdown indexer — file symbols + section symbols + hierarchical tags (порт нашего toy из `ideas/001-toy/`).
+- ✅ Background initial scan при пустом индексе. На AIrnd-репо: 48 файлов / 994 символа / ~330мс. `asp_refresh` синхронно — ~500мс.
+- ✅ `partial-index` degradation пока background scan не завершён.
 - ✅ Error model (codes -32100..-32105 per spec Section 8.1).
 - ✅ Empty `degradation: []` array в нормальном режиме (per spec Section 8.2).
 
-## Что **не** работает (TODO Stage 2a — part 3)
+## Что **не** работает (Stage 2b и далее)
 
-- 🚧 `asp/findByTag` — есть таблица tags, нужна только operation handler.
-- 🚧 `asp/context` — есть parent_id и tags, нужна только operation handler.
-- 🚧 `asp/refresh` — нужно вынести fullScan() в operation.
 - 🚧 tree-sitter для кода (.py, .ts, .rs, ...) — сейчас только markdown.
 - 🚧 Incremental re-index по mtime — сейчас только full scan.
+- 🚧 `asp_retrieve` — embeddings (Stage 2b, ADR 0007 follow-up).
+- 🚧 `asp_impact` — graph index (Stage 2c).
+- 🚧 `asp_writeFile` / `asp_applyPatch` — mutations (Stage 2b).
+- 🚧 Async refresh (`wait: false`) + path-scoped refresh.
 - 🚧 Tests.

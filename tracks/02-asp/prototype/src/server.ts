@@ -21,12 +21,15 @@ import { z } from "zod";
 import { STAGE_2A_CAPABILITIES } from "./capabilities.js";
 import { fullScan } from "./index/indexer.js";
 import { IndexStore, defaultIndexPath } from "./index/store.js";
+import { makeContextOp } from "./operations/context.js";
+import { makeFindByTagOp } from "./operations/find-by-tag.js";
 import { listFilesOp } from "./operations/list-files.js";
 import {
   BinaryFileError,
   NotFoundError,
   readFileOp,
 } from "./operations/read-file.js";
+import { makeRefreshOp } from "./operations/refresh.js";
 import { makeSearchFilesOp } from "./operations/search-files.js";
 import { PathForbiddenError, setRepoRoot } from "./repo-root.js";
 import { SERVER_INFO } from "./types.js";
@@ -65,6 +68,21 @@ async function main(): Promise<void> {
   const searchFilesOp = makeSearchFilesOp({
     store,
     indexBuilt: () => indexReady,
+  });
+  const findByTagOp = makeFindByTagOp({
+    store,
+    indexBuilt: () => indexReady,
+  });
+  const contextOp = makeContextOp({
+    store,
+    indexBuilt: () => indexReady,
+  });
+  const refreshOp = makeRefreshOp({
+    store,
+    repoRoot,
+    onComplete: () => {
+      indexReady = true;
+    },
   });
 
   // Background initial scan if index is empty. We don't block startup; the
@@ -172,6 +190,65 @@ async function main(): Promise<void> {
           },
         },
         {
+          name: "asp_findByTag",
+          description:
+            "ASP operation `asp/findByTag`. Hierarchical (default) or exact tag lookup against the indexed symbol set. Tag format: slash-separated path (e.g. `tracks/02-asp/decisions`).",
+          inputSchema: {
+            type: "object",
+            properties: {
+              tag: {
+                type: "string",
+                pattern: "^[\\w-]+(/[\\w-]+)*$",
+                description: "Tag in slash-separated form",
+              },
+              hierarchical: {
+                type: "boolean",
+                description:
+                  "true (default): prefix match; false: exact match only",
+              },
+              kind: {
+                type: "string",
+                description: "Optional symbol kind filter (file / section / ...)",
+              },
+              limit: { type: "integer", minimum: 1, maximum: 500 },
+              tokenBudget: { type: "integer", minimum: 1 },
+            },
+            required: ["tag"],
+          },
+        },
+        {
+          name: "asp_context",
+          description:
+            "ASP operation `asp/context`. Returns rich context for a single symbol: its full record, parent, direct children, and (in Stage 2c) references/referents.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              symbol: {
+                type: "string",
+                description: "Symbol ID (e.g. `section:README.md#Overview`)",
+              },
+              includeBody: { type: "boolean" },
+              includeReferences: { type: "boolean" },
+              includeReferents: { type: "boolean" },
+              tokenBudget: { type: "integer", minimum: 1 },
+            },
+            required: ["symbol"],
+          },
+        },
+        {
+          name: "asp_refresh",
+          description:
+            "ASP operation `asp/refresh`. Triggers a full repository re-scan (Stage 2a: incremental + path-scoped + async are degraded to full sync scan).",
+          inputSchema: {
+            type: "object",
+            properties: {
+              scope: { type: "string", enum: ["incremental", "full"] },
+              paths: { type: "array", items: { type: "string" } },
+              wait: { type: "boolean" },
+            },
+          },
+        },
+        {
           name: "asp_capabilities",
           description:
             "Return advertised ASP capabilities (spec Section 5). Stable across this server lifetime.",
@@ -199,6 +276,24 @@ async function main(): Promise<void> {
         }
         case "asp_searchFiles": {
           const result = await searchFilesOp(args ?? {});
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          };
+        }
+        case "asp_findByTag": {
+          const result = await findByTagOp(args ?? {});
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          };
+        }
+        case "asp_context": {
+          const result = await contextOp(args ?? {});
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          };
+        }
+        case "asp_refresh": {
+          const result = await refreshOp(args ?? {});
           return {
             content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
           };
