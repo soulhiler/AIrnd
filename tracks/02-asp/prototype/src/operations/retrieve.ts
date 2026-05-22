@@ -11,6 +11,7 @@ import {
 } from "../index/embeddings.js";
 import { escapeFtsPhrase } from "../index/store.js";
 import { symbolRowToAsp } from "./find-by-tag.js";
+import { maybeRerank } from "./rerank.js";
 import type { DegradationEntry, Symbol as AspSymbol } from "../types.js";
 
 /**
@@ -104,25 +105,11 @@ export function makeRetrieveOp(deps: RetrieveDeps) {
       candidates = reciprocalRankFusion(k, v).slice(0, nRetrieve);
     }
 
-    // Stage 2: rerank — not implemented in Stage 2b. Honour the request by
-    // tagging the response with a clear degradation entry.
-    let rerankApplied = false;
-    if (wantsRerank) {
-      degradation.push({
-        feature: "rerank",
-        reason:
-          "LLM-based rerank is not implemented in Stage 2b (planned: ADR follow-up)",
-        impact:
-          "Results are ordered by first-stage ranking only (vector / keyword similarity)",
-        severity: "info",
-      });
-    }
-
-    // Hydrate symbols and apply filters.
+    // Hydrate candidates first (with filter applied) so rerank works on a
+    // populated, filtered set.
     const filter = params.filter;
-    const out: RetrievedSymbol[] = [];
+    const hydrated: RetrievedSymbol[] = [];
     for (const c of candidates) {
-      if (out.length >= nFinal) break;
       const row = deps.store.getSymbolById(c.symbolId);
       if (row === null) continue;
       if (filter !== undefined) {
@@ -141,8 +128,39 @@ export function makeRetrieveOp(deps: RetrieveDeps) {
       }
       const sym = symbolRowToAsp(row) as RetrievedSymbol;
       sym.score = c.score;
-      out.push(sym);
+      hydrated.push(sym);
     }
+
+    // Stage 2: LLM rerank (per ADR 0009). Falls back to first-stage ordering
+    // with a `rerank` degradation when no provider is configured.
+    let rerankApplied = false;
+    let ordered = hydrated;
+    if (wantsRerank && hydrated.length > 0) {
+      const rerankResult = await maybeRerank({
+        query: params.query,
+        candidates: hydrated,
+        nFinal,
+      });
+      degradation.push(...rerankResult.degradation);
+      if (rerankResult.ordering !== null) {
+        const byId = new Map(hydrated.map((h) => [h.id, h]));
+        const reordered: RetrievedSymbol[] = [];
+        for (const id of rerankResult.ordering) {
+          const sym = byId.get(id);
+          if (sym !== undefined) reordered.push(sym);
+        }
+        // Append anything the LLM didn't pick, preserving prior order.
+        for (const sym of hydrated) {
+          if (!rerankResult.ordering.includes(sym.id)) {
+            reordered.push(sym);
+          }
+        }
+        ordered = reordered;
+        rerankApplied = true;
+      }
+    }
+
+    const out = ordered.slice(0, nFinal);
 
     // Token-budget enforcement (apply after Stage 2 placeholder).
     let truncated = false;

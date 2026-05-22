@@ -143,15 +143,18 @@ npm run build
 - ✅ **Incremental re-index** по `mtime_ms` через `asp_refresh({scope: "incremental"})`. На повторных запусках без изменений: 46/48 файлов пропускается, 3× быстрее full scan.
 - ✅ **Stale file pruning** — удалённые с диска файлы удаляются из индекса автоматически в обоих режимах.
 
-## Stage 2c — impact + mutations
+## Stage 2c+ — full feature set
 
-- ✅ **`asp_impact`** — best-effort blast radius через симвовольный edge-граф (`calls` edges). BFS с `direction: upstream | downstream | both`, `maxDepth`, riskLevel heuristic (low/medium/high). Honest `degradation: ["edge-resolution"]` — name-based resolution over-approximates.
+- ✅ **`asp_impact`** — best-effort blast radius через символьный edge-граф. BFS с `direction: upstream | downstream | both`, `maxDepth`, riskLevel heuristic. Honest `edge-resolution` degradation.
 - ✅ **`asp_writeFile`** — destructive write с path traversal protection, `ifExists: overwrite|fail|skip`, `createDirs`.
-- ✅ **`asp_applyPatch`** — unified-diff applier с hunk-level conflict detection, `dryRun` validation, ifExists semantics. Не fork-safe vs concurrent edits — caller's responsibility.
-- ✅ **`edges` таблица** (schema v3) — symbol-to-symbol relationships с `src/dst/kind` индексами в обе стороны. Резолвится после индекса по anchor-name match.
-- ✅ **Capabilities бамп**: `impactAnalysis: true`, `mutations: ["writeFile", "applyPatch"]`.
-- ✅ **Tests:** 14 новых тестов (impact + mutations). Все 37 проходят.
-- 🚧 **LLM rerank** — design зафиксирован в [ADR 0009](../decisions/0009-llm-rerank-design-and-integration-path.md). Реализация отложена до outreach feedback (sampling vs direct LLM choice).
+- ✅ **`asp_applyPatch`** — unified-diff applier с hunk-level conflict detection и `dryRun`.
+- ✅ **`asp_refresh` full feature set**: scope: `full | incremental`, `paths: [...]` для path-scoped scan, `wait: false` для async + jobId.
+- ✅ **`asp_refreshStatus`** — polling background jobs создаваемых через `asp_refresh({wait:false})`.
+- ✅ **LLM rerank через Anthropic SDK** (opt-in). Установка `ASP_RERANK_PROVIDER=anthropic` + `ANTHROPIC_API_KEY` → real rerank. Без ключа — текущий degradation path. Model настраивается через `ASP_RERANK_MODEL` (default `claude-haiku-4-5-20251001`). Sampling provider — TODO (после outreach).
+- ✅ **Tree-sitter coverage расширен:** Python, TypeScript, TSX, JavaScript + **Rust, Go, Java, C#, Ruby, Bash**. 10 языков с extraction rules для function/method/class/interface/enum/type. Call edges работают на всех.
+- ✅ **`edges` таблица** (schema v3) — symbol-to-symbol relationships с CASCADE FK, индексы в обе стороны.
+- ✅ **Capabilities**: `impactAnalysis: true`, `mutations: ["writeFile", "applyPatch"]`, `retrievalModes: [keyword, vector, hybrid]`.
+- ✅ **Tests:** 43 проходят (+6: 3 refresh + 3 code-lang).
 
 ## Stage 2b — embeddings + retrieve + tests
 
@@ -168,10 +171,10 @@ npm run build
   - `operations.test.ts`: path traversal, token budget, FTS5 search, findByTag, context.
   - `retrieve.test.ts`: keyword mode, vector fallback, rerank degradation, filter.
 
-## Что **не** работает (Stage 2c+ и follow-ups)
+## Что **не** работает (follow-ups)
 
-- 🚧 LLM-based rerank — design в [ADR 0009](../decisions/0009-llm-rerank-design-and-integration-path.md), реализация отложена.
-- 🚧 Async refresh (`wait: false`) + path-scoped refresh.
-- 🚧 Дополнительные tree-sitter языки (Rust, Go, Java, C/C++ доступны в `tree-sitter-wasms`).
+- 🚧 MCP sampling rerank provider — заглушка, ждёт outreach feedback (Cline / Goose / Continue).
 - 🚧 ANN индекс для embeddings (сейчас linear scan; OK до ~10k символов с embeddings).
 - 🚧 Precise edge resolution — сейчас anchor-based (over-approximates). LSP-style точная resolution — отдельный шаг.
+- 🚧 Persistent jobs (refresh job state — in-memory; теряется при restart).
+- 🚧 C/C++ tree-sitter language — WASMs есть, но extraction rules не написаны.

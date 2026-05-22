@@ -38,4 +38,15 @@ export const STAGE_2A_CAPABILITIES: AspCapabilities = {
  * Files in other languages are skipped by the code indexer (markdown still
  * indexes via the markdown indexer for any `.md`/`.mdx`).
  */
-export const PARSER_COVERAGE = ["python", "typescript", "tsx", "javascript"];
+export const PARSER_COVERAGE = [
+  "python",
+  "typescript",
+  "tsx",
+  "javascript",
+  "rust",
+  "go",
+  "java",
+  "c_sharp",
+  "ruby",
+  "bash",
+];

@@ -42,6 +42,12 @@ export interface ScanOptions {
    * dependency-light; the server flips it on when configured for Stage 2b.
    */
   embed?: boolean;
+  /**
+   * If provided and non-empty, only files matching one of these prefixes are
+   * processed. Stale-file pruning is restricted to the same scope so that
+   * out-of-scope indexed symbols are left alone.
+   */
+  paths?: string[];
   onProgress?: (processed: number) => void;
 }
 
@@ -70,11 +76,19 @@ export async function fullScan(opts: ScanOptions): Promise<IndexStats> {
   // Track which paths we observed on disk so we can prune the rest.
   const seenPaths = new Set<string>();
   const pendingEdges: PendingEdge[] = [];
+  const scopePaths = opts.paths?.filter((p) => p.length > 0) ?? [];
+  const inScope = (relPath: string): boolean => {
+    if (scopePaths.length === 0) return true;
+    return scopePaths.some(
+      (s) => relPath === s || relPath.startsWith(s.endsWith("/") ? s : s + "/"),
+    );
+  };
 
   for await (const entry of walkRepo({
     root: opts.root,
     respectGitignore: true,
-    fileFilter: (p) => isMarkdownPath(p) || isCodePath(p),
+    fileFilter: (p) =>
+      (isMarkdownPath(p) || isCodePath(p)) && inScope(p),
   })) {
     seenPaths.add(entry.relPath);
 
@@ -133,10 +147,13 @@ export async function fullScan(opts: ScanOptions): Promise<IndexStats> {
     }
   }
 
-  // Prune symbols for files that disappeared from disk.
+  // Prune symbols for files that disappeared from disk. When a scope was
+  // provided, only prune within that scope — out-of-scope indexed symbols
+  // remain untouched.
   let removed = 0;
   const indexedPaths = opts.store.indexedPaths();
   for (const indexedPath of indexedPaths) {
+    if (!inScope(indexedPath)) continue;
     if (!seenPaths.has(indexedPath)) {
       removed += opts.store.deleteByPath(indexedPath);
     }

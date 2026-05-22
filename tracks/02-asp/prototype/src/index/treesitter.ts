@@ -33,6 +33,13 @@ const EXT_TO_LANG: Record<string, string> = {
   ".jsx": "javascript",
   ".mjs": "javascript",
   ".cjs": "javascript",
+  ".rs": "rust",
+  ".go": "go",
+  ".java": "java",
+  ".cs": "c_sharp",
+  ".rb": "ruby",
+  ".sh": "bash",
+  ".bash": "bash",
 };
 
 export function langForPath(relPath: string): string | null {

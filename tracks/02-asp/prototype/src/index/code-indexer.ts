@@ -48,6 +48,123 @@ const RULES: Record<string, DefinitionRule[]> = {
   typescript: tsRules(),
   tsx: tsRules(),
   javascript: tsRules(),
+  rust: [
+    {
+      nodeTypes: ["function_item"],
+      symbolKind: "function",
+      kindTag: "kind/callable/function",
+    },
+    {
+      nodeTypes: ["struct_item"],
+      symbolKind: "class",
+      kindTag: "kind/type/class",
+    },
+    {
+      nodeTypes: ["enum_item"],
+      symbolKind: "enum",
+      kindTag: "kind/type/enum",
+    },
+    {
+      nodeTypes: ["trait_item"],
+      symbolKind: "interface",
+      kindTag: "kind/type/interface",
+    },
+    {
+      nodeTypes: ["mod_item"],
+      symbolKind: "module",
+      kindTag: "kind/container/module",
+    },
+    {
+      nodeTypes: ["type_item"],
+      symbolKind: "type",
+      kindTag: "kind/type/typedef",
+    },
+  ],
+  go: [
+    {
+      nodeTypes: ["function_declaration"],
+      symbolKind: "function",
+      kindTag: "kind/callable/function",
+    },
+    {
+      nodeTypes: ["method_declaration"],
+      symbolKind: "method",
+      kindTag: "kind/callable/method",
+    },
+    {
+      nodeTypes: ["type_declaration"],
+      symbolKind: "type",
+      kindTag: "kind/type/typedef",
+    },
+  ],
+  java: [
+    {
+      nodeTypes: ["method_declaration"],
+      symbolKind: "method",
+      kindTag: "kind/callable/method",
+    },
+    {
+      nodeTypes: ["class_declaration"],
+      symbolKind: "class",
+      kindTag: "kind/type/class",
+    },
+    {
+      nodeTypes: ["interface_declaration"],
+      symbolKind: "interface",
+      kindTag: "kind/type/interface",
+    },
+    {
+      nodeTypes: ["enum_declaration"],
+      symbolKind: "enum",
+      kindTag: "kind/type/enum",
+    },
+  ],
+  c_sharp: [
+    {
+      nodeTypes: ["method_declaration", "local_function_statement"],
+      symbolKind: "method",
+      kindTag: "kind/callable/method",
+    },
+    {
+      nodeTypes: ["class_declaration", "struct_declaration"],
+      symbolKind: "class",
+      kindTag: "kind/type/class",
+    },
+    {
+      nodeTypes: ["interface_declaration"],
+      symbolKind: "interface",
+      kindTag: "kind/type/interface",
+    },
+    {
+      nodeTypes: ["enum_declaration"],
+      symbolKind: "enum",
+      kindTag: "kind/type/enum",
+    },
+  ],
+  ruby: [
+    {
+      nodeTypes: ["method", "singleton_method"],
+      symbolKind: "method",
+      kindTag: "kind/callable/method",
+    },
+    {
+      nodeTypes: ["class"],
+      symbolKind: "class",
+      kindTag: "kind/type/class",
+    },
+    {
+      nodeTypes: ["module"],
+      symbolKind: "module",
+      kindTag: "kind/container/module",
+    },
+  ],
+  bash: [
+    {
+      nodeTypes: ["function_definition"],
+      symbolKind: "function",
+      kindTag: "kind/callable/function",
+    },
+  ],
 };
 
 function tsRules(): DefinitionRule[] {
@@ -191,6 +308,10 @@ const CALL_NODE_TYPES = new Set([
   "call",
   "call_expression",
   "new_expression",
+  "method_invocation", // Java
+  "object_creation_expression", // Java / C#
+  "invocation_expression", // C#
+  "command", // Bash
 ]);
 
 function walkAndExtract(

@@ -31,7 +31,7 @@ import {
   NotFoundError,
   readFileOp,
 } from "./operations/read-file.js";
-import { makeRefreshOp } from "./operations/refresh.js";
+import { makeRefreshOp, refreshStatusOp } from "./operations/refresh.js";
 import { makeRetrieveOp } from "./operations/retrieve.js";
 import { makeSearchFilesOp } from "./operations/search-files.js";
 import { FileExistsError, writeFileOp } from "./operations/write-file.js";
@@ -281,14 +281,25 @@ async function main(): Promise<void> {
         {
           name: "asp_refresh",
           description:
-            "ASP operation `asp/refresh`. Triggers a full repository re-scan (Stage 2a: incremental + path-scoped + async are degraded to full sync scan).",
+            "ASP operation `asp/refresh`. Trigger a repository re-scan. Supports incremental (mtime-based) + path scoping + async (wait: false → returns jobId). Pair with `asp_refreshStatus` to poll.",
           inputSchema: {
             type: "object",
             properties: {
               scope: { type: "string", enum: ["incremental", "full"] },
               paths: { type: "array", items: { type: "string" } },
               wait: { type: "boolean" },
+              embed: { type: "boolean" },
             },
+          },
+        },
+        {
+          name: "asp_refreshStatus",
+          description:
+            "ASP operation `asp/refreshStatus`. Poll a background refresh job created via `asp_refresh({wait: false})`.",
+          inputSchema: {
+            type: "object",
+            properties: { jobId: { type: "string", minLength: 1 } },
+            required: ["jobId"],
           },
         },
         {
@@ -383,6 +394,12 @@ async function main(): Promise<void> {
         }
         case "asp_refresh": {
           const result = await refreshOp(args ?? {});
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          };
+        }
+        case "asp_refreshStatus": {
+          const result = await refreshStatusOp(args ?? {});
           return {
             content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
           };

@@ -1,13 +1,17 @@
 import { z } from "zod";
-import { fullScan } from "../index/indexer.js";
+import { fullScan, type IndexStats } from "../index/indexer.js";
+import { globalJobs } from "../index/jobs.js";
 import type { IndexStore } from "../index/store.js";
 import type { DegradationEntry } from "../types.js";
 
 /**
  * `asp/refresh` — spec Section 6.4.3.
  *
- * Stage 2a implementation: synchronous full scan (`wait: true` only). Async
- * job mode (`wait: false`) and incremental scope handling land in Stage 2b.
+ * Stage 2c (full support):
+ *  - scope: "full" | "incremental"
+ *  - paths: optional scope to specific subtrees
+ *  - wait: false → returns a jobId immediately, scan runs in background
+ *  - asp/refreshStatus(jobId) polls completion
  */
 
 const RefreshParamsSchema = z.object({
@@ -21,11 +25,13 @@ export type RefreshParams = z.infer<typeof RefreshParamsSchema>;
 
 export interface RefreshResult {
   completed: boolean;
-  filesProcessed: number;
-  filesSkipped: number;
-  filesRemoved: number;
-  symbolsIndexed: number;
-  durationMs: number;
+  jobId?: string;
+  filesProcessed?: number;
+  filesSkipped?: number;
+  filesRemoved?: number;
+  symbolsIndexed?: number;
+  edgesResolved?: number;
+  durationMs?: number;
   truncated: boolean;
   degradation: DegradationEntry[];
 }
@@ -45,41 +51,90 @@ export function makeRefreshOp(deps: RefreshDeps) {
     const scope = params.scope ?? "full";
     const degradation: DegradationEntry[] = [];
 
-    if (params.paths !== undefined && params.paths.length > 0) {
-      degradation.push({
-        feature: "scoped-refresh",
-        reason: "Path-scoped refresh is not implemented in Stage 2a",
-        impact: "Provided paths are ignored; performing a full rescan",
-        severity: "info",
-      });
-    }
-    if (!wait) {
-      degradation.push({
-        feature: "async-refresh",
-        reason: "Asynchronous refresh (wait=false) is not implemented in Stage 2a",
-        impact: "Operation will block until the rescan completes",
-        severity: "info",
-      });
-    }
-
     const embedRequested = params.embed ?? deps.embedByDefault ?? false;
-    const stats = await fullScan({
+    const scanOpts = {
       root: deps.repoRoot,
       store: deps.store,
       incremental: scope === "incremental",
       embed: embedRequested,
-    });
-    if (deps.onComplete !== undefined) deps.onComplete();
+      ...(params.paths !== undefined && { paths: params.paths }),
+    };
 
+    if (wait) {
+      const stats = await fullScan(scanOpts);
+      if (deps.onComplete !== undefined) deps.onComplete();
+      return {
+        completed: true,
+        filesProcessed: stats.filesProcessed,
+        filesSkipped: stats.filesSkipped,
+        filesRemoved: stats.filesRemoved,
+        symbolsIndexed: stats.symbolsIndexed,
+        edgesResolved: stats.edgesResolved,
+        durationMs: stats.durationMs,
+        truncated: false,
+        degradation,
+      };
+    }
+
+    // Async path: queue the job, return immediately.
+    const job = globalJobs.create<IndexStats>("refresh");
+    void runJob(job.jobId, scanOpts, deps.onComplete);
     return {
-      completed: true,
-      filesProcessed: stats.filesProcessed,
-      filesSkipped: stats.filesSkipped,
-      filesRemoved: stats.filesRemoved,
-      symbolsIndexed: stats.symbolsIndexed,
-      durationMs: stats.durationMs,
+      completed: false,
+      jobId: job.jobId,
       truncated: false,
       degradation,
     };
+  };
+}
+
+async function runJob(
+  jobId: string,
+  scanOpts: Parameters<typeof fullScan>[0],
+  onComplete?: () => void,
+): Promise<void> {
+  globalJobs.start(jobId);
+  try {
+    const stats = await fullScan(scanOpts);
+    globalJobs.complete(jobId, stats);
+    if (onComplete !== undefined) onComplete();
+  } catch (e) {
+    globalJobs.fail(jobId, (e as Error).message);
+  }
+}
+
+/* ------------------------ asp/refreshStatus ------------------------ */
+
+const RefreshStatusParamsSchema = z.object({
+  jobId: z.string().min(1),
+});
+
+export interface RefreshStatusResult {
+  jobId: string;
+  status: "pending" | "running" | "complete" | "failed";
+  stats?: IndexStats;
+  error?: string;
+  degradation: DegradationEntry[];
+}
+
+export async function refreshStatusOp(
+  rawParams: unknown,
+): Promise<RefreshStatusResult> {
+  const params = RefreshStatusParamsSchema.parse(rawParams);
+  const job = globalJobs.get<IndexStats>(params.jobId);
+  if (job === undefined) {
+    return {
+      jobId: params.jobId,
+      status: "failed",
+      error: "Job not found (or evicted by gc)",
+      degradation: [],
+    };
+  }
+  return {
+    jobId: job.jobId,
+    status: job.status,
+    ...(job.result !== undefined && { stats: job.result }),
+    ...(job.error !== undefined && { error: job.error }),
+    degradation: [],
   };
 }
