@@ -21,6 +21,8 @@ export type RefreshParams = z.infer<typeof RefreshParamsSchema>;
 export interface RefreshResult {
   completed: boolean;
   filesProcessed: number;
+  filesSkipped: number;
+  filesRemoved: number;
   symbolsIndexed: number;
   durationMs: number;
   truncated: boolean;
@@ -40,14 +42,6 @@ export function makeRefreshOp(deps: RefreshDeps) {
     const scope = params.scope ?? "full";
     const degradation: DegradationEntry[] = [];
 
-    if (scope === "incremental") {
-      degradation.push({
-        feature: "incremental-refresh",
-        reason: "Incremental scope is not implemented in Stage 2a",
-        impact: "Performing a full rescan instead",
-        severity: "info",
-      });
-    }
     if (params.paths !== undefined && params.paths.length > 0) {
       degradation.push({
         feature: "scoped-refresh",
@@ -68,12 +62,15 @@ export function makeRefreshOp(deps: RefreshDeps) {
     const stats = await fullScan({
       root: deps.repoRoot,
       store: deps.store,
+      incremental: scope === "incremental",
     });
     if (deps.onComplete !== undefined) deps.onComplete();
 
     return {
       completed: true,
       filesProcessed: stats.filesProcessed,
+      filesSkipped: stats.filesSkipped,
+      filesRemoved: stats.filesRemoved,
       symbolsIndexed: stats.symbolsIndexed,
       durationMs: stats.durationMs,
       truncated: false,

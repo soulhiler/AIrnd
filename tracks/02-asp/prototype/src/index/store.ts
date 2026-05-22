@@ -66,6 +66,9 @@ export class IndexStore {
     findByTagExact: Database.Statement;
     findByTagHierarchical: Database.Statement;
     childrenOfSymbol: Database.Statement;
+    getFileMtime: Database.Statement;
+    deleteByPath: Database.Statement;
+    distinctIndexedPaths: Database.Statement;
   };
 
   constructor(dbPath: string) {
@@ -150,6 +153,20 @@ export class IndexStore {
         WHERE parent_id = ?
         ORDER BY line
       `),
+      // Pick the file-kind row (scheme='file') for a given path. We use the
+      // file symbol's mtime as the "freshness anchor" for the whole file.
+      getFileMtime: this.db.prepare(`
+        SELECT mtime_ms FROM symbols
+        WHERE path = ? AND scheme = 'file'
+        LIMIT 1
+      `),
+      // Drop all symbols for a path (file + its sections + future code symbols).
+      // FK ON DELETE CASCADE handles tags table.
+      deleteByPath: this.db.prepare(`DELETE FROM symbols WHERE path = ?`),
+      // For stale-file detection: enumerate every path currently in the index.
+      distinctIndexedPaths: this.db.prepare(
+        `SELECT DISTINCT path FROM symbols`,
+      ),
     };
   }
 
@@ -270,6 +287,37 @@ export class IndexStore {
   childrenOf(parentId: string): SymbolRow[] {
     const rows = this.stmts.childrenOfSymbol.all(parentId) as RawSymbolRow[];
     return rows.map((r) => this.hydrateSymbol(r));
+  }
+
+  /**
+   * Mtime stored for the file-scheme symbol of `relPath`. Returns null if the
+   * file is not indexed yet.
+   */
+  getFileMtime(relPath: string): number | null {
+    const row = this.stmts.getFileMtime.get(relPath) as
+      | { mtime_ms: number | null }
+      | undefined;
+    return row?.mtime_ms ?? null;
+  }
+
+  /**
+   * Remove all symbols (and their tags via FK cascade) for `relPath`.
+   * Returns the number of symbol rows removed.
+   */
+  deleteByPath(relPath: string): number {
+    const info = this.stmts.deleteByPath.run(relPath);
+    return Number(info.changes);
+  }
+
+  /**
+   * All paths currently present in the index. Used to detect files removed
+   * from the filesystem since the last scan.
+   */
+  indexedPaths(): Set<string> {
+    const rows = this.stmts.distinctIndexedPaths.all() as Array<{
+      path: string;
+    }>;
+    return new Set(rows.map((r) => r.path));
   }
 
   private hydrateSymbol(row: RawSymbolRow): SymbolRow {

@@ -15,8 +15,10 @@ import { ASP_VERSION } from "./types.js";
  */
 export const STAGE_2A_CAPABILITIES: AspCapabilities = {
   version: ASP_VERSION,
-  tier: 2, // baseline + indexed (FTS5 keyword retrieval)
-  tagSchema: "hierarchical", // populated by markdown-indexer (path + headings)
+  tier: 2, // baseline + indexed (FTS5 keyword + tag lookup + context)
+  tagSchema: "hierarchical",
+  // Now sourced from path + markdown headings AND tree-sitter parsers
+  // (which emit `kind/...` tags for code symbols).
   tagSources: ["path", "markdown-headings"],
   retrievalModes: ["keyword"], // FTS5 only; vector / graph / hybrid pending
   impactAnalysis: false, // Stage 2c
@@ -27,3 +29,10 @@ export const STAGE_2A_CAPABILITIES: AspCapabilities = {
   },
   mutations: [], // read-only; writeFile/applyPatch in Stage 2b
 };
+
+/**
+ * Languages whose tree-sitter WASM grammars and extraction rules are bundled.
+ * Files in other languages are skipped by the code indexer (markdown still
+ * indexes via the markdown indexer for any `.md`/`.mdx`).
+ */
+export const PARSER_COVERAGE = ["python", "typescript", "tsx", "javascript"];

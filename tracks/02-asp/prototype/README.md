@@ -74,7 +74,10 @@ Workname: `asp-ref`. Финальное имя — выбирается пере
     - `search-files.ts` — `asp/searchFiles` через FTS5 (spec 6.2.3).
     - `find-by-tag.ts` — `asp/findByTag` через таблицу `tags` (spec 6.3.1).
     - `context.ts` — `asp/context` с parent/children (spec 6.3.3).
-    - `refresh.ts` — `asp/refresh` синхронный full scan (spec 6.4.3).
+    - `refresh.ts` — `asp/refresh` синхронный full/incremental (spec 6.4.3).
+  - `index/` (расширен):
+    - `treesitter.ts` — web-tree-sitter bootstrap, lazy language loading.
+    - `code-indexer.ts` — извлечение функций/классов/методов/интерфейсов/типов.
   - `index/`
     - `schema.ts` — SQLite DDL (symbols + tags + symbols_fts + triggers).
     - `store.ts` — IndexStore wrapper с prepared statements.
@@ -127,12 +130,20 @@ npm run build
 - ✅ Error model (codes -32100..-32105 per spec Section 8.1).
 - ✅ Empty `degradation: []` array в нормальном режиме (per spec Section 8.2).
 
+## Stage 2a part 4 — tree-sitter + incremental
+
+- ✅ **tree-sitter WASM** через `web-tree-sitter@0.22` + `tree-sitter-wasms@0.1`. Языки: Python, TypeScript, TSX, JavaScript. WASM-only setup, без native build tools (per ADR 0008).
+- ✅ **Code indexer** извлекает функции / классы / методы / интерфейсы / enums / type aliases с правильным parent linkage. Symbol IDs формата `<lang>:<dotted.path>` (например, `python:myapp.auth.login_user`).
+- ✅ **Hierarchical kind tags** на code symbols: `kind/callable/function`, `kind/type/class`, `kind/type/interface`, и т.д. — per spec Section 7.4.
+- ✅ **`lang/<id>` tag** на всех символах (markdown тоже получает `lang/markdown`).
+- ✅ **Incremental re-index** по `mtime_ms` через `asp_refresh({scope: "incremental"})`. На повторных запусках без изменений: 46/48 файлов пропускается, 3× быстрее full scan.
+- ✅ **Stale file pruning** — удалённые с диска файлы удаляются из индекса автоматически в обоих режимах.
+
 ## Что **не** работает (Stage 2b и далее)
 
-- 🚧 tree-sitter для кода (.py, .ts, .rs, ...) — сейчас только markdown.
-- 🚧 Incremental re-index по mtime — сейчас только full scan.
 - 🚧 `asp_retrieve` — embeddings (Stage 2b, ADR 0007 follow-up).
 - 🚧 `asp_impact` — graph index (Stage 2c).
 - 🚧 `asp_writeFile` / `asp_applyPatch` — mutations (Stage 2b).
 - 🚧 Async refresh (`wait: false`) + path-scoped refresh.
 - 🚧 Tests.
+- 🚧 Дополнительные tree-sitter языки (Rust, Go, Java, C/C++ доступны в `tree-sitter-wasms`, нужно только добавить rules).
