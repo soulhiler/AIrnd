@@ -29,8 +29,8 @@
 
 ### TRIZ
 
-- [ ] **Г. С. Альтшуллер** — основы ТРИЗ, законы развития технических систем (S-curve, переусложнение как признак потолка).
-- [ ] **ARIZ** — алгоритм решения изобретательских задач.
+- [x] **Г. С. Альтшуллер** — основы ТРИЗ, законы развития технических систем (S-curve, переусложнение как признак потолка), ИКР как формальный test минимальной достаточности → [`altshuller-1986-triz.md`](altshuller-1986-triz.md)
+- [ ] **ARIZ** — алгоритм решения изобретательских задач (more procedural detail).
 
 ### AI-специфичное
 
@@ -49,6 +49,7 @@
 |---|---|---|---|---|
 | [brooks-1975-mythical-man-month](brooks-1975-mythical-man-month.md) | The Mythical Man-Month + No Silver Bullet | 1975/1986 | 5 | software-engineering, methodology, brooks-law, conceptual-integrity, no-silver-bullet, classic, foundation |
 | [reliability-theory-classical-foundations](reliability-theory-classical-foundations.md) | Теория надёжности машин — series/parallel формулы, bathtub, minimum sufficiency | 1950-2025 (collective) | 4 | reliability-theory, machine-engineering, soviet-school, mtbf, bathtub-curve, series-parallel, redundancy, sufficiency |
+| [altshuller-1986-triz](altshuller-1986-triz.md) | ТРИЗ — ИКР, S-кривая, противоречия, законы развития систем | 1969-2006 | 5 | triz, altshuller, soviet-engineering-school, ideal-final-result, s-curve, system-evolution, contradictions, minimum-sufficiency, classic |
 
 ## Не релевантные (помечены, чтобы не возвращаться)
 
