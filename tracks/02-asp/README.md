@@ -1,0 +1,104 @@
+# Трек 2 — Agent Server Protocol (ASP)
+
+> **⏸ ПАУЗА с 2026-05-22.** Трек ставится на паузу до **получения второго и третьего внешнего отзыва** на v0.1.2. Это прямое применение правила «one feature, one outreach» из [трека 4](../04-methodology/). Между outreach-раундами не добавляем новый scope — только bug fixes по уже полученным отзывам и документация. После 3 независимых отзывов или 4 недель — пересмотр статуса. См. [ADR 0001 трека 4](../04-methodology/decisions/0001-track-4-scope-methodology-of-aiassisted-research-and-development.md).
+
+LSP стандартизировал общение между редактором и компилятором. Гипотеза трека: стандартизированный протокол для **агентов** (Cursor, Claude Code, Aider, Continue, Cline) даст экосистеме то, что LSP дал IDE-индустрии.
+
+**Артефакт трека:** RFC-спецификация ASP + reference implementation (clean-room, GitNexus parity + 5 UX-исправлений) + test suite. Reference implementation — dogfood-tool, активно используемый в наших проектах. См. [ADR 0001](decisions/0001-mcp-extension-vs-new-protocol.md), [ADR 0002](decisions/0002-asp-scope-opensource-agent-ecosystem-only.md), [ADR 0003](decisions/0003-reference-implementation-cleanroom-build-with-gitnexus-parity-5-fixes.md).
+
+**Текущий черновик спецификации:** [`design/03-asp-spec-draft.md`](design/03-asp-spec-draft.md) (Draft v0.1, in progress).
+
+Полная постановка — в `docs/TZ/RD_PROGRAM_TZ.md`, секция «ТРЕК 2».
+
+## Простыми словами
+
+Мы пишем **правила** (стандарт) для AI-помощников, которые умеют ориентироваться в коде проекта. Идея — как с электрическими розетками: есть стандарт, и любой производитель может сделать свой телевизор, который к этой розетке подходит. Сейчас у каждого AI-помощника свой формат — это неудобно. Наш стандарт будет общим для всех.
+
+Плюс к правилам — пишем **свою «розетку»** (программу-помощник как пример), чтобы доказать, что правила работают, а не только красиво написаны на бумаге.
+
+## Текущая фаза
+
+**Фаза 1 — Дизайн (написание спецификации)**
+
+- Фаза 0 закрыта: 2026-05-21 (1 день вместо плановых 3-4 недели благодаря Claude Code-assisted research).
+- Фаза 1 старт: 2026-05-21.
+- Целевая длительность: 4 недели.
+- Цель: написать черновик ASP-спецификации v0.1 (Capabilities + Operations + Symbol schema + Error model + JSON Schema). Outreach начинается ближе к концу Фазы 1 (см. [ADR 0005](decisions/0005-outreach-deferred-gate-0-to-1-closes-without-user-commitments.md)).
+
+### Фаза 0 — закрыта (2026-05-21)
+
+Литобзор закрыт: 10/10 работ обработано. 5 архитектурных ADR (0001-0005) приняты. Идея 001 (hierarchical tags) повышена до ADR 0004 + toy implementation. Outreach отложен до Gate 1 → 2 (ADR 0005).
+
+## Карта артефактов
+
+| Папка | Что внутри |
+|---|---|
+| [`lit-review/`](lit-review/) | Один файл = одна работа; начни с [`_prior-art-survey.md`](lit-review/_prior-art-survey.md) |
+| [`notebook/`](notebook/) | Ежедневный лабораторный журнал |
+| [`decisions/`](decisions/) | ADR — архитектурные решения |
+| [`design/`](design/) | Дизайн-документы (спецификации, обзоры) |
+| [`prototype/`](prototype/) | Код прототипа (появится на Фазе 2) |
+| [`experiments/`](experiments/) | Pre-registration + результаты экспериментов |
+| [`deliverables/`](deliverables/) | Препринт, артефакты для конференций |
+
+## Lessons learned (для будущих треков)
+
+**Урок 2026-05-21:** глубокий разбор GitNexus (39.5k★, 16 MCP tools) после foundational литобзора показал, что точная engineering задача уже решена. Это привело к [переопределению направления](decisions/0001-mcp-extension-vs-new-protocol.md) с «строить ASP» на «формализовать GitNexus API как open RFC». В будущих треках — **prior art search до foundational литобзора** ([workflow](../../docs/workflows/prior-art-search.md)). Это сэкономило бы день; в более сложных случаях могло бы сэкономить недели.
+
+## Gate 0 → 1 — **ЗАКРЫТ 2026-05-21** ✅
+
+- [x] Литобзор написан в [`design/01-literature-review.md`](design/01-literature-review.md) (5–10 страниц)
+- [x] Обработано не менее 10 ключевых работ в [`lit-review/`](lit-review/): **10/10** — LSP, MCP, tree-sitter, GitNexus, Aider RepoMap, Continue.dev, Cline, Goose, SCIP, SWE-bench (см. [`lit-review/INDEX.md`](lit-review/INDEX.md))
+- [x] Подтверждено, что точная идея не дублирует существующие публикации (GitNexus решает engineering часть; ASP позиционируется как open RFC поверх — см. [ADR 0001](decisions/0001-mcp-extension-vs-new-protocol.md))
+- [x] Сформулирован gap: чего конкретно не хватает в MCP / LSP / существующих агентах ([§ 7 в литобзоре](design/01-literature-review.md))
+- [x] Принято решение: ASP = open RFC, formalizing GitNexus-style API ([ADR 0001](decisions/0001-mcp-extension-vs-new-protocol.md), accepted 2026-05-21)
+- [x] Scope зафиксирован: **open-source agent ecosystem only** ([ADR 0002](decisions/0002-asp-scope-opensource-agent-ecosystem-only.md), accepted 2026-05-21)
+- [~] ~~Минимум 3 экспериментальных пользователя~~ — **deferred to Gate 1 → 2** per [ADR 0005](decisions/0005-outreach-deferred-gate-0-to-1-closes-without-user-commitments.md). Outreach без artifact = слабый pitch; делаем после spec sketch.
+
+---
+
+## Gate 1 → 2 (АКТИВНЫЙ)
+
+- [ ] Spec v0.1 опубликована (GitHub Pages / ReadTheDocs)
+- [ ] Архитектурные ADR для reference implementation приняты: язык, storage, parser, search, MCP packaging (см. [ADR 0003 § Necessary follow-ups](decisions/0003-reference-implementation-cleanroom-build-with-gitnexus-parity-5-fixes.md#necessary-follow-ups))
+- [ ] Формат сообщений специфицирован через JSON Schema
+- [ ] **Outreach completed:** ≥3 OSS agent maintainers contacted, ≥1 expressed positive interest (verbal commitment, code review, или PR) — per [ADR 0005](decisions/0005-outreach-deferred-gate-0-to-1-closes-without-user-commitments.md). Targets: Cline (Saoud Rizwan, priority №1), Goose (Linux Foundation AAIF), Aider (Paul Gauthier), Continue.dev, GitNexus (Patwari — private heads-up).
+
+---
+
+## Gate 2 → 3
+
+Reference implementation проходит три stages (см. [ADR 0003 § Negative.Scope creep](decisions/0003-reference-implementation-cleanroom-build-with-gitnexus-parity-5-fixes.md#negative)):
+
+- [ ] **Stage 2a (MVP-alpha):** 5 операций (index/query/context/impact/detect_changes) + 2 fixes (offline-first FTS, fuzzy lookup); dogfood на нашем репо
+- [ ] **Stage 2b (MVP-beta):** +6 операций (rename/cypher/api_impact/shape_check/route_map/tool_map) + 2 fixes; ≥1 внешний OSS-агент использует
+- [ ] **Stage 2c (parity):** все 16 операций GitNexus + 5-й fix (explicit degradation); готов к extract в отдельный repo
+- [ ] Reference client (Claude Code / Cline) решает задачи end-to-end через ASP
+- [ ] На одной задаче метрики говорят о выигрыше vs GitNexus или ripgrep+AST
+
+---
+
+## Gate 3 → 4
+
+- [ ] Данные собраны по SWE-bench Lite
+- [ ] Сравнение с ripgrep+AST и embeddings проведено
+- [ ] Статистически значимая разница хотя бы по одной метрике
+
+---
+
+## Gate 4 → 5
+
+- [ ] Spec stable enough для версии 1.0
+- [ ] Reference implementation production-ready
+- [ ] Хотя бы один external user реально использует
+
+---
+
+## Связь с публикацией
+
+Цель публикации Трека 2:
+- **Препринт** на arXiv (cs.SE).
+- **Workshop:** LLM4Code (ICSE), AIware (FSE).
+- **Adoption:** хотя бы один крупный агент.
+
+Полная стратегия — в ТЗ, секция «Трек 2, Фаза 5».
