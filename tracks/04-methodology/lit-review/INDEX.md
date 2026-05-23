@@ -8,7 +8,7 @@
 
 ### Software engineering / общая методология
 
-- [ ] **Frederick Brooks** — «The Mythical Man-Month» (1975) — закон Брукса, фундаментальные ограничения добавления людей/кода.
+- [x] **Frederick Brooks** — «The Mythical Man-Month» (1975) + «No Silver Bullet» (1986) → [`brooks-1975-mythical-man-month.md`](brooks-1975-mythical-man-month.md)
 - [ ] **John Gall** — «General Systemantics» (1975) — «сложная работающая система всегда эволюционирует из простой».
 - [ ] **Larry Tesler** — Law of conservation of complexity — сложность не уничтожается, перераспределяется.
 - [ ] **Mel Conway** — Conway's Law (1968) — структура организации = структура системы.
@@ -46,7 +46,7 @@
 
 | Slug | Title | Year | Relevance | Tags |
 |---|---|---|---|---|
-| _нет записей_ | | | | |
+| [brooks-1975-mythical-man-month](brooks-1975-mythical-man-month.md) | The Mythical Man-Month + No Silver Bullet | 1975/1986 | 5 | software-engineering, methodology, brooks-law, conceptual-integrity, no-silver-bullet, classic, foundation |
 
 ## Не релевантные (помечены, чтобы не возвращаться)
 
