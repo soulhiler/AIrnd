@@ -43,6 +43,16 @@
 - [ ] **Karl Popper** — фальсифицируемость, как формулировать проверяемые гипотезы.
 - [ ] **William of Ockham** — бритва Оккама как методологический принцип.
 
+### Русско-советская школа (survey см. [`design/04-russian-school-survey.md`](../design/04-russian-school-survey.md))
+
+- [x] **А. П. Ершов** — «О человеческом и эстетическом факторах в программировании» (1972) → [`ershov-1972-human-aesthetic-factors.md`](ershov-1972-human-aesthetic-factors.md) — эстетика как внутренний предохранитель.
+- [x] **А. А. Богданов** — «Тектология: Всеобщая организационная наука» (1913-1922) → [`bogdanov-tektology.md`](bogdanov-tektology.md) — **родительский каркас** всей нашей триангуляции. Pre-cybernetics, активности-сопротивления, организованные/дезорганизованные/нейтральные комплексы.
+- [ ] **А. А. Самарский, А. П. Михайлов** — «Математическое моделирование» (1997) — триада «модель — алгоритм — программа».
+- [ ] **А. А. Шалыто** — «Автоматное программирование» (2009) — явные state machines как минимизация скрытой сложности.
+- [ ] **Н. Н. Непейвода** — «Стили и методы программирования» (2005) — морфологическая классификация парадигм.
+- [ ] **В. В. Липаев** — «Надёжность программных средств» (1981, 2010-е) — русский аналог Musa-Iannino-Okumoto.
+- [ ] **В. Лепский, Е. Малахова** — «Bogdanov's tektology, anticipating the evolution of social systems control» (2023) — современный мост.
+
 ## Обработанные работы
 
 | Slug | Title | Year | Relevance | Tags |
@@ -51,6 +61,8 @@
 | [reliability-theory-classical-foundations](reliability-theory-classical-foundations.md) | Теория надёжности машин — series/parallel формулы, bathtub, minimum sufficiency | 1950-2025 (collective) | 4 | reliability-theory, machine-engineering, soviet-school, mtbf, bathtub-curve, series-parallel, redundancy, sufficiency |
 | [altshuller-1986-triz](altshuller-1986-triz.md) | ТРИЗ — ИКР, S-кривая, противоречия, законы развития систем | 1969-2006 | 5 | triz, altshuller, soviet-engineering-school, ideal-final-result, s-curve, system-evolution, contradictions, minimum-sufficiency, classic |
 | [arshinskiy-2019-software-systematization](arshinskiy-2019-software-systematization.md) | Принципы необходимости и достаточности в систематизации ПО — formal apparatus (¬A→¬B, 3 аспекта) | 2019 | 5 | prior-art, sufficiency-principle, necessity-principle, software-classification, russian-engineering-school, three-aspects, formal-logic, foundation |
+| [ershov-1972-human-aesthetic-factors](ershov-1972-human-aesthetic-factors.md) | О человеческом и эстетическом факторах в программировании — эстетика как внутренний предохранитель против пессимизации | 1972 | 5 | soviet-school, ershov, programming-methodology, aesthetics, conceptual-integrity, human-factors, 100-percent-completeness, foundation, classic |
+| [bogdanov-tektology](bogdanov-tektology.md) | Тектология: Всеобщая организационная наука — pre-cybernetics родительский каркас, активности-сопротивления, организованные/дезорганизованные/нейтральные комплексы, математика = тектология нейтральных | 1913-1922 | 5+ | bogdanov, tektology, universal-organization-theory, pre-cybernetics, systems-theory, foundation, soviet-suppressed-classic, parent-framework, activities-resistances |
 
 ## Не релевантные (помечены, чтобы не возвращаться)
 
