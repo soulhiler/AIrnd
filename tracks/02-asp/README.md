@@ -1,5 +1,7 @@
 # Трек 2 — Agent Server Protocol (ASP)
 
+> **⏸ ПАУЗА с 2026-05-22.** Трек ставится на паузу до **получения второго и третьего внешнего отзыва** на v0.1.2. Это прямое применение правила «one feature, one outreach» из [трека 4](../04-methodology/). Между outreach-раундами не добавляем новый scope — только bug fixes по уже полученным отзывам и документация. После 3 независимых отзывов или 4 недель — пересмотр статуса. См. [ADR 0001 трека 4](../04-methodology/decisions/0001-track-4-scope-methodology-of-aiassisted-research-and-development.md).
+
 LSP стандартизировал общение между редактором и компилятором. Гипотеза трека: стандартизированный протокол для **агентов** (Cursor, Claude Code, Aider, Continue, Cline) даст экосистеме то, что LSP дал IDE-индустрии.
 
 **Артефакт трека:** RFC-спецификация ASP + reference implementation (clean-room, GitNexus parity + 5 UX-исправлений) + test suite. Reference implementation — dogfood-tool, активно используемый в наших проектах. См. [ADR 0001](decisions/0001-mcp-extension-vs-new-protocol.md), [ADR 0002](decisions/0002-asp-scope-opensource-agent-ecosystem-only.md), [ADR 0003](decisions/0003-reference-implementation-cleanroom-build-with-gitnexus-parity-5-fixes.md).
