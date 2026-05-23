@@ -20,7 +20,7 @@
 - [x] **Семейство классических работ** (Дружинин, Орлов, MIL-HDBK-217, советская инженерная школа) → [`reliability-theory-classical-foundations.md`](reliability-theory-classical-foundations.md) — обобщённая запись по доступным источникам; конкретные первоисточники не достали через web (403).
 - [ ] **MIL-HDBK-217** или эквивалент — расчёт надёжности комплексных систем (нужен полный текст).
 - [ ] **Musa, Iannino, Okumoto** — «Software Reliability» (1987) — formal extension theory надёжности на software.
-- [ ] **Cyberleninka: «Принципы необходимости и достаточности в систематизации ПО»** — **критическая** prior art, попробовать достать через другие каналы.
+- [x] **В. Л. Аршинский, Л. В. Аршинский, С. В. Бахвалов** — «Принципы необходимости и достаточности в систематизации ПО» (2019) → [`arshinskiy-2019-software-systematization.md`](arshinskiy-2019-software-systematization.md) — полный текст получен через user upload, прочитан. Дают **формальный аппарат** (нотация `¬A → ¬B`, три аспекта e/f/g), не competing principle. Дополняют, не заменяют нашу триангуляцию.
 
 ### Lean / Continuous Improvement
 
@@ -50,6 +50,7 @@
 | [brooks-1975-mythical-man-month](brooks-1975-mythical-man-month.md) | The Mythical Man-Month + No Silver Bullet | 1975/1986 | 5 | software-engineering, methodology, brooks-law, conceptual-integrity, no-silver-bullet, classic, foundation |
 | [reliability-theory-classical-foundations](reliability-theory-classical-foundations.md) | Теория надёжности машин — series/parallel формулы, bathtub, minimum sufficiency | 1950-2025 (collective) | 4 | reliability-theory, machine-engineering, soviet-school, mtbf, bathtub-curve, series-parallel, redundancy, sufficiency |
 | [altshuller-1986-triz](altshuller-1986-triz.md) | ТРИЗ — ИКР, S-кривая, противоречия, законы развития систем | 1969-2006 | 5 | triz, altshuller, soviet-engineering-school, ideal-final-result, s-curve, system-evolution, contradictions, minimum-sufficiency, classic |
+| [arshinskiy-2019-software-systematization](arshinskiy-2019-software-systematization.md) | Принципы необходимости и достаточности в систематизации ПО — formal apparatus (¬A→¬B, 3 аспекта) | 2019 | 5 | prior-art, sufficiency-principle, necessity-principle, software-classification, russian-engineering-school, three-aspects, formal-logic, foundation |
 
 ## Не релевантные (помечены, чтобы не возвращаться)
 
