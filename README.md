@@ -51,12 +51,13 @@ make lint                              # markdown lint + link check
 3. **Gate-критерии явные** — переход между фазами только после чеклиста.
 4. **Open science by default** — код, данные, решения публичны.
 5. **Claude Code = имплементационный партнёр**, не научный руководитель.
-6. **5 правил против overcoding** (из трека 4, см. `CLAUDE.md`):
-   - Code budget ≤500 строк за сессию.
+6. **5+1 правила против overcoding** (из трека 4, см. `CLAUDE.md`):
+   - Decisions per session ≤3 (вместо «строки за сессию» — узкое место сдвинулось от производства к решениям).
    - One feature, one outreach.
    - Adversarial test required для security-sensitive файлов.
-   - Stage gates как hard barriers (≥1 внешний пользователь).
+   - Stage gates как hard barriers (≥1 внешняя валидация решения).
    - Lit-review в параллель, не одним проходом.
+   - ADR — явный выбор человека из вариантов AI, не «делай все».
 
 ## Лицензия
 
